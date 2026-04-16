@@ -1,0 +1,47 @@
+{
+  "extends": "next/core-web-vitals",
+  "compilerOptions": {
+    // Strict type checking
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    // Module resolution
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+
+    // JSX configuration
+    "jsx": "preserve",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+
+    // Force consistent file names
+    "forceConsistentCasingInFileNames": true,
+
+    // Path aliases (allows imports like @/components instead of ../../components)
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    // Additional options
+    "incremental": true,
+    "noEmit": true,
+    "isolatedModules": true,
+
+    // Include source maps for debugging
+    "sourceMap": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

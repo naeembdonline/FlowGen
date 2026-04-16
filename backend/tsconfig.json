@@ -1,0 +1,85 @@
+{
+  "compilerOptions": {
+    // Target ECMAScript version (ES2022 for modern Node.js features)
+    "target": "ES2022",
+
+    // Module system (ESNext for import/export syntax)
+    "module": "ESNext",
+
+    // Module resolution strategy (Node16 for Node.js ESM)
+    "moduleResolution": "node16",
+
+    // Output directory for compiled JavaScript
+    "outDir": "./dist",
+
+    // Root directory of TypeScript files
+    "rootDir": "./src",
+
+    // Enable strict type checking (catches more errors)
+    "strict": true,
+
+    // Enable all strict type checking options
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+
+    // Additional type checking
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    // Module resolution options
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+
+    // Generate declaration files (.d.ts)
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+
+    // Skip type checking of declaration files
+    "skipLibCheck": true,
+
+    // Enable experimental decorators (for some libraries)
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    // Force consistent file extensions
+    "forceConsistentCasingInFileNames": true,
+
+    // Remove comments in output (optional, set false for debugging)
+    "removeComments": false,
+
+    // Allow JavaScript files
+    "allowJs": false,
+
+    // Check JavaScript files
+    // "checkJs": true,
+
+    // List of files to include
+    "include": [
+      "src/**/*"
+    ],
+
+    // List of files to exclude
+    "exclude": [
+      "node_modules",
+      "dist",
+      "**/*.test.ts",
+      "**/*.spec.ts"
+    ]
+  },
+  "ts-node": {
+    "esm": true,
+    "experimentalSpecifierResolution": "node"
+  }
+}

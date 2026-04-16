@@ -1,0 +1,138 @@
+# ============================================================================
+# FLOWGEN LEAD GENERATION SAAS - DOCKER COMPOSE
+# ============================================================================
+# Local development environment setup
+# Usage: docker-compose up -d
+# ============================================================================
+version: '3.8'
+
+services:
+  # ----------------------------------------------------------------------------
+  # REDIS - Job Queue & Caching
+  # ----------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: fikerflow-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - fikerflow-network
+
+  # ----------------------------------------------------------------------------
+  # POSTGRESQL - Local Database (Optional)
+  # ----------------------------------------------------------------------------
+  # NOTE: We're using Supabase for production, but this is available
+  # for local development if you prefer not to use Supabase locally
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: fikerflow-postgres
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     POSTGRES_DB: fikerflow
+  #     POSTGRES_USER: fikerflow_user
+  #     POSTGRES_PASSWORD: fikerflow_password
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U fikerflow_user"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+  #   networks:
+  #     - fikerflow-network
+
+  # ----------------------------------------------------------------------------
+  # REDIS INSIGHT (Optional) - Redis GUI
+  # ----------------------------------------------------------------------------
+  # Uncomment to use Redis Insight for visualizing Redis data
+  # redis-insight:
+  #   image: redislabs/redisinsight:latest
+  #   container_name: fikerflow-redis-insight
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8001:8001"
+  #   volumes:
+  #     - redis-insight-data:/db
+  #   depends_on:
+  #     - redis
+  #   networks:
+  #     - fikerflow-network
+
+# ----------------------------------------------------------------------------
+# VOLUMES - Persistent Data Storage
+# ----------------------------------------------------------------------------
+volumes:
+  redis-data:
+    driver: local
+  # postgres-data:
+  #   driver: local
+  # redis-insight-data:
+  #   driver: local
+
+# ----------------------------------------------------------------------------
+# NETWORKS - Service Communication
+# ----------------------------------------------------------------------------
+networks:
+  fikerflow-network:
+    driver: bridge
+
+# ============================================================================
+# USAGE INSTRUCTIONS
+# ============================================================================
+#
+# Start all services:
+#   docker-compose up -d
+#
+# Stop all services:
+#   docker-compose down
+#
+# View logs:
+#   docker-compose logs -f redis
+#
+# Restart a service:
+#   docker-compose restart redis
+#
+# Remove all data and start fresh:
+#   docker-compose down -v
+#
+# ============================================================================
+# SERVICE ACCESS POINTS
+# ============================================================================
+#
+# Redis:
+#   Host: localhost
+#   Port: 6379
+#   Connection string: redis://localhost:6379
+#
+# Redis Insight (if enabled):
+#   URL: http://localhost:8001
+#
+# ============================================================================
+# TROUBLESHOOTING
+# ============================================================================
+#
+# Redis connection refused:
+#   - Check if container is running: docker-compose ps
+#   - Check logs: docker-compose logs redis
+#   - Ensure port 6379 is not in use by another application
+#
+# Data not persisting:
+#   - Volumes are defined above and should persist
+#   - To clear data: docker-compose down -v
+#
+# Performance issues:
+#   - Allocate more memory to Docker Desktop
+#   - Recommended: 4GB+ RAM for smooth operation
+#
+# ============================================================================
