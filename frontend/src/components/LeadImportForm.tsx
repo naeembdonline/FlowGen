@@ -121,7 +121,7 @@ export function LeadImportForm() {
     }
   };
 
-  const handleInputChange = (field: keyof ImportFormData, value: any) => {
+  const handleInputChange = (field: keyof ImportFormData, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -150,7 +150,7 @@ export function LeadImportForm() {
                 id="location"
                 placeholder="San Francisco, CA"
                 value={formData.location}
-                onChange={(e) => handleInputChange('location', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('location', e.target.value)}
                 disabled={loading}
                 required
               />
@@ -166,7 +166,7 @@ export function LeadImportForm() {
                 id="query"
                 placeholder="coffee shops, restaurants, gyms..."
                 value={formData.query}
-                onChange={(e) => handleInputChange('query', e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('query', e.target.value)}
                 disabled={loading}
               />
               <p className="text-xs text-muted-foreground">
@@ -185,7 +185,7 @@ export function LeadImportForm() {
                   max="50000"
                   step="100"
                   value={formData.radius}
-                  onChange={(e) => handleInputChange('radius', parseInt(e.target.value))}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('radius', parseInt(e.target.value))}
                   disabled={loading}
                 />
               </div>
@@ -195,7 +195,7 @@ export function LeadImportForm() {
                 <Label htmlFor="minRating">Minimum Rating</Label>
                 <Select
                   value={formData.minRating.toString()}
-                  onValueChange={(value) => handleInputChange('minRating', parseFloat(value))}
+                  onValueChange={(value: string) => handleInputChange('minRating', parseFloat(value))}
                   disabled={loading}
                 >
                   <SelectTrigger>
@@ -218,7 +218,7 @@ export function LeadImportForm() {
                 <Label htmlFor="maxResults">Max Results</Label>
                 <Select
                   value={formData.maxResults.toString()}
-                  onValueChange={(value) => handleInputChange('maxResults', parseInt(value))}
+                  onValueChange={(value: string) => handleInputChange('maxResults', parseInt(value))}
                   disabled={loading}
                 >
                   <SelectTrigger>
@@ -242,7 +242,7 @@ export function LeadImportForm() {
                 <Label htmlFor="batchSize">Batch Size</Label>
                 <Select
                   value={formData.batchSize.toString()}
-                  onValueChange={(value) => handleInputChange('batchSize', parseInt(value))}
+                  onValueChange={(value: string) => handleInputChange('batchSize', parseInt(value))}
                   disabled={loading}
                 >
                   <SelectTrigger>

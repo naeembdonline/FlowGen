@@ -4,13 +4,13 @@ A complete, production-ready multi-tenant SaaS platform for automated lead gener
 
 ## ✨ Features
 
-- **🔍 Lead Discovery**: Search and import leads from Google Maps via omkarcloud API
+- **🔍 Lead Discovery**: Queue-based Google Maps scraping with Puppeteer Cluster (100% free, no APIs)
 - **🤖 AI-Powered Messages**: Generate personalized outreach messages using Claude AI
 - **📱 Multi-Channel Outreach**: Send messages via WhatsApp (Evolution API) and Email (Brevo)
 - **📊 Analytics Dashboard**: Track campaigns, responses, and conversions
 - **🏢 Multi-Tenant**: Complete data isolation for multiple agencies/clients
 - **💳 SaaS Ready**: Built-in Stripe integration for subscription billing (Phase 6)
-- **⚡ Job Queue**: Redis-backed Bull queue for reliable message delivery
+- **⚡ Job Queue**: BullMQ queue system with Redis for batch processing (500+ leads)
 - **🔒 Secure**: Row-level security (RLS) for tenant data isolation
 
 ## 🛠️ Tech Stack
@@ -27,14 +27,15 @@ A complete, production-ready multi-tenant SaaS platform for automated lead gener
 - **Express.js** - REST API server
 - **TypeScript** - Type-safe backend
 - **Supabase** - PostgreSQL database & authentication
-- **Redis + Bull** - Job queue for async processing
+- **Redis + BullMQ** - Job queue for batch processing
+- **Puppeteer Cluster** - Memory-efficient web scraping
 - **Winston** - Logging
 
 ### External Services
 - **Claude AI** - Message generation
 - **Evolution API** - WhatsApp integration
 - **Brevo** - Email delivery
-- **omkarcloud** - Google Maps scraping
+- **Puppeteer** - Self-hosted Google Maps scraping (no paid APIs!)
 - **Stripe** - Payment processing (Phase 6)
 
 ## 📋 Prerequisites
@@ -51,7 +52,7 @@ Before you begin, ensure you have the following installed:
 
 ```bash
 git clone <your-repo-url>
-cd fikerflow-lead-saas
+cd flowgen-lead-saas
 ```
 
 ### 2. Environment Setup
@@ -59,15 +60,15 @@ cd fikerflow-lead-saas
 Copy the environment variables template and fill in your values:
 
 ```bash
-cp .env.example .env
+cp .env.example backend/.env
+cp frontend/.env.local.example frontend/.env.local
 ```
 
-Edit `.env` and add your API keys (see [External Services Setup](#external-services-setup)).
+Edit `backend/.env` and add your API keys (see [External Services Setup](#external-services-setup)).
 
 ### 3. Start Services
 
-Start Redis and other dependencies with Docker Compose:
-
+Start Redis with Docker Compose:
 ```bash
 docker-compose up -d
 ```
@@ -81,41 +82,33 @@ docker-compose ps
 
 1. Create a **Supabase project** at https://supabase.com
 2. Get your credentials: `SUPABASE_URL` and `SUPABASE_ANON_KEY`
-3. Run the database migration:
-
-In Supabase Dashboard → SQL Editor, run:
+3. Run the database migration in Supabase Dashboard → SQL Editor:
 ```sql
 -- Paste contents of: backend/src/db/migrations/001_initial_schema.sql
-```
-
-4. (Optional) Load seed data for development:
-```sql
--- Paste contents of: backend/src/db/seeds/001_seed_data.sql
 ```
 
 ### 5. Install Dependencies
 
 ```bash
-# Backend dependencies
-cd backend
-npm install
-
-# Frontend dependencies
-cd ../frontend
-npm install
+# Install all dependencies from root
+npm run install:all
 ```
 
 ### 6. Start Development Servers
 
-Terminal 1 - Backend API:
+**Option A: Start both frontend and backend**
 ```bash
+npm run dev
+```
+
+**Option B: Start individually**
+```bash
+# Terminal 1 - Backend API:
 cd backend
 npm run dev
 # Server runs on http://localhost:3001
-```
 
-Terminal 2 - Frontend:
-```bash
+# Terminal 2 - Frontend:
 cd frontend
 npm run dev
 # App runs on http://localhost:3000
@@ -126,7 +119,7 @@ npm run dev
 Open your browser and navigate to:
 - **Frontend**: http://localhost:3000
 - **API**: http://localhost:3001/health
-- **Login**: http://localhost:3000/login
+- **Import Leads**: http://localhost:3000/import
 
 ## 🔑 External Services Setup
 
@@ -144,21 +137,11 @@ Open your browser and navigate to:
 
 1. Visit https://console.anthropic.com
 2. Create an API key
-3. Add to `.env`:
+3. Add to `backend/.env`:
    ```
    ANTHROPIC_API_KEY=sk-ant-your-key-here
    ```
 4. Free tier available for testing
-
-### omkarcloud (Google Maps Scraping)
-
-1. Visit https://omkarcloud.com
-2. Sign up and get API key
-3. Add to `.env`:
-   ```
-   OMKARCLOUD_API_KEY=your-key-here
-   ```
-4. Check pricing and rate limits
 
 ### Evolution API (WhatsApp)
 
@@ -188,7 +171,7 @@ Redis is started via Docker Compose. No setup needed.
 ## 📁 Project Structure
 
 ```
-fikerflow-lead-saas/
+flowgen-lead-saas/
 ├── frontend/                 # Next.js application
 │   ├── src/
 │   │   ├── app/             # App Router pages
@@ -201,7 +184,7 @@ fikerflow-lead-saas/
 │   ├── src/
 │   │   ├── routes/          # API endpoints
 │   │   ├── services/        # Business logic
-│   │   ├── jobs/            # Bull queue workers
+│   │   ├── jobs/            # BullMQ queue workers
 │   │   ├── middleware/      # Auth, validation
 │   │   ├── config/          # Database, Redis config
 │   │   ├── db/              # Migrations, seeds
@@ -251,21 +234,6 @@ cd frontend
 npm run type-check
 ```
 
-## 🗄️ Database Migrations
-
-### Create a New Migration
-
-1. Create file: `backend/src/db/migrations/002_your_migration.sql`
-2. Write your SQL changes
-3. Run in Supabase SQL Editor
-
-### Rollback
-
-```sql
--- Write rollback SQL in reverse order
--- Manually execute in Supabase SQL Editor
-```
-
 ## 📚 API Documentation
 
 ### Authentication Endpoints
@@ -275,26 +243,25 @@ npm run type-check
 - `POST /api/v1/auth/logout` - Log out
 - `GET /api/v1/auth/me` - Get current user
 
-### Lead Endpoints (Phase 2)
+### Lead Endpoints
 
 - `GET /api/v1/leads` - List leads
 - `GET /api/v1/leads/:id` - Get lead details
-- `POST /api/v1/leads/import` - Import from Google Maps
+- `POST /api/v1/leads/import` - Import from Google Maps (queue-based)
+- `GET /api/v1/leads/import/progress/:jobId` - Get import progress
 - `PATCH /api/v1/leads/:id` - Update lead
 - `DELETE /api/v1/leads/:id` - Delete lead
 
-### Campaign Endpoints (Phase 3)
+### Queue Management Endpoints
 
-- `GET /api/v1/campaigns` - List campaigns
-- `POST /api/v1/campaigns` - Create campaign
-- `POST /api/v1/campaigns/:id/launch` - Launch campaign
+- `GET /api/v1/leads/queue/stats` - Get queue statistics
+- `POST /api/v1/leads/queue/pause` - Pause queue processing
+- `POST /api/v1/leads/queue/resume` - Resume queue processing
 
 ### Health Endpoints
 
 - `GET /health` - Basic health check
 - `GET /health/detailed` - Detailed service status
-- `GET /health/ready` - Readiness probe
-- `GET /health/live` - Liveness probe
 
 Full API documentation with Swagger is coming soon!
 
@@ -303,163 +270,122 @@ Full API documentation with Swagger is coming soon!
 ### System Design
 
 ```
-┌─────────────────────────────────────────┐
-│         Next.js Frontend                │
-│  (Dashboard, Leads, Campaigns, Analytics) │
-└─────────────────┬───────────────────────┘
-                  │ REST API
-┌─────────────────▼───────────────────────┐
-│          Express.js Backend              │
-│  (Routes, Business Logic, Job Queue)     │
-└───┬─────────┬─────────┬─────────┬───────┘
-    │         │         │         │
-    ▼         ▼         ▼         ▼
- Supabase   Redis    Claude   Evolution
-(Auth+DB)  (Jobs)   (AI)     (WhatsApp)
-               │
-               ▼
-             Brevo
-            (Email)
+┌─────────────────────────────────────────────────────────────┐
+│                     Next.js Frontend                        │
+│  (Dashboard, Lead Management, Campaign Creation, Analytics)  │
+└────────────────────────┬────────────────────────────────────┘
+                         │ REST API
+┌────────────────────────▼────────────────────────────────────┐
+│                   Express.js Backend                         │
+│  (API Routes, Business Logic, Job Queue Management)          │
+└─────┬─────────┬─────────┬─────────┬─────────┬───────────────┘
+      │         │         │         │         │
+      ▼         ▼         ▼         ▼         ▼
+   Supabase   Redis    Claude   Evolution  Brevo
+  (Auth+DB)  (Jobs)   (AI)     (WhatsApp) (Email)
 ```
 
-### Multi-Tenancy
+### Data Flow
 
-- **Tenant Isolation**: Row-Level Security (RLS) in PostgreSQL
-- **User-Tenant Association**: Each user belongs to one tenant
-- **Data Segregation**: All queries automatically filtered by `tenant_id`
-- **Secure by Default**: Backend uses service role key with proper auth checks
+1. **User searches for leads** → Google Maps scraping (Puppeteer Cluster)
+2. **Leads stored in Supabase** with tenant isolation
+3. **User creates campaign** → Claude AI generates personalized messages
+4. **Messages queued in Redis** (BullMQ) for rate-limited delivery
+5. **Sent via Evolution API** (WhatsApp) or Brevo (Email)
+6. **Responses tracked** and analytics updated
 
-### Job Queue Flow
+## 🎯 Phase Implementation
 
-1. User creates campaign → Messages added to Bull queue
-2. Worker processes messages with rate limiting
-3. Messages sent via Evolution API (WhatsApp) or Brevo (Email)
-4. Webhooks update delivery status
-5. Analytics updated in real-time
+### ✅ Phase 1: Foundation & Core Architecture
+- Project structure with Next.js + Express monorepo
+- Supabase setup with database schema
+- Authentication system using Supabase Auth
+- Basic API structure with Express + TypeScript
+- Frontend layout with Shadcn/UI components
+- Docker configuration for local development
 
-## 🔐 Security
+### ✅ Phase 2: Lead Scraping & Management
+- Google Maps scraper service using Puppeteer with stealth mode
+- Queue-based batch processing (BullMQ + Redis)
+- Puppeteer Cluster for memory efficiency
+- Lead management interface (list, search, filter)
+- Bulk operations (export, delete, tag)
+- Real-time progress tracking
 
-### Authentication
+### 🔜 Phase 3: AI-Powered Message Generation (Next)
+- Claude AI integration for message generation
+- Message template system with variable substitution
+- A/B testing framework for message variants
+- Message preview UI
 
-- Supabase Auth for user management
-- JWT tokens for API authentication
-- Token refresh mechanism
-- Secure password hashing (handled by Supabase)
+### 🔜 Phase 4: Message Delivery
+- WhatsApp integration (Evolution API)
+- Email integration (Brevo)
+- Job queue processing with rate limiting
+- Delivery tracking and status updates
 
-### Authorization
+### 🔜 Phase 5: Analytics & Dashboard
+- Analytics dashboard with charts
+- Campaign performance metrics
+- Lead conversion tracking
+- Response rate calculations
 
-- Role-based access control (admin, user, viewer)
-- Row-Level Security (RLS) for tenant isolation
-- API route protection with auth middleware
-
-### Best Practices
-
-- Environment variables for sensitive data
-- CORS configuration
-- Helmet.js for security headers
-- Rate limiting (coming soon)
-- Input validation with express-validator
-
-## 🚀 Deployment
-
-### Frontend Deployment (Vercel)
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy frontend
-cd frontend
-vercel
-```
-
-### Backend Deployment (Railway/Render)
-
-```bash
-# Using Railway
-npm i -g railway
-railway login
-railway init
-railway up
-
-# Or use Render, AWS, GCP, etc.
-```
-
-### Environment Variables
-
-Set these in your deployment platform:
-
-**Frontend:**
-- `NEXT_PUBLIC_API_URL`
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-**Backend:**
-- All variables from `.env.example`
-
-## 📈 Roadmap
-
-### ✅ Phase 1: Foundation (Current)
-- Project structure
-- Database schema
-- Authentication system
-- Basic API and UI
-
-### 🔨 Phase 2: Lead Management
-- Google Maps integration
-- Lead import and management
-- Bulk operations
-
-### 🤖 Phase 3: AI Messages
-- Claude AI integration
-- Message templates
-- A/B testing
-
-### 📤 Phase 4: Messaging Infrastructure
-- Bull queue implementation
-- WhatsApp integration
-- Email integration
-- Delivery tracking
-
-### 📊 Phase 5: Analytics
-- Campaign performance
-- Response tracking
-- Conversion metrics
-
-### 💳 Phase 6: SaaS Features
-- Stripe integration
-- Subscription billing
-- Plan limits
+### 🔜 Phase 6: SaaS Features
+- Stripe integration for subscriptions
+- Plan limits (messages per month, leads stored)
 - Client management
+- White-label branding options
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Problem: "Module not found"**
+```bash
+cd backend && npm install
+```
+
+**Problem: "Port 3001 in use"**
+```bash
+lsof -ti :3001 | xargs kill -9
+```
+
+**Problem: "Redis connection failed"**
+```bash
+docker-compose up -d redis
+```
+
+**Problem: "Scraping too slow"**
+- Reduce maxResults to 10-20
+- Skip email extraction
+- Use cached results
+
+**Problem: "High memory usage"**
+- Reduce batch size in queue configuration
+- Check for memory leaks in Puppeteer cluster
+- Restart the queue service
+
+## 📖 Documentation
+
+- **Setup Guide**: `LOCAL_SETUP_GUIDE.md`
+- **Queue System**: `QUEUE_SYSTEM_GUIDE.md`
+- **Puppeteer Cluster**: `PUPPETEER_CLUSTER_GUIDE.md`
+- **Quick Reference**: `QUICK_REFERENCE.md`
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 📝 License
+## 📄 License
 
 This project is licensed under the MIT License.
 
-## 🆘 Support
-
-- **Documentation**: See this README and code comments
-- **Issues**: Open a GitHub issue
-- **Discussions**: Use GitHub Discussions for questions
-
 ## 🎉 Acknowledgments
 
-- Built with [Next.js](https://nextjs.org/)
-- Database and auth by [Supabase](https://supabase.com/)
-- AI powered by [Anthropic](https://www.anthropic.com/)
-- Icons by [Lucide](https://lucide.dev/)
+Built with ❤️ using modern web technologies and open-source libraries.
 
 ---
 
-**Made with ❤️ by Fikerflow**
+**FlowGen** - AI-Powered Lead Generation & Outreach Platform
 
-Happy coding! 🚀
-# FlowGen
+*For support and questions, please open an issue on GitHub.*

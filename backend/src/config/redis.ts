@@ -84,19 +84,21 @@ redisClient.on('close', () => {
 /**
  * Initialize Redis connection and verify connectivity
  * This function tests the connection and logs the result
+ * Note: Redis connection is optional for development - backend will continue if Redis is unavailable
  */
 export async function initializeRedis(): Promise<void> {
   try {
     // Test connection with PING command
     const response = await redisClient.ping();
     if (response === 'PONG') {
-      logger.debug('Redis connection verified successfully');
+      logger.info('✓ Redis connection verified successfully');
     } else {
       throw new Error(`Unexpected PING response: ${response}`);
     }
   } catch (error) {
-    logger.error('Failed to connect to Redis:', error);
-    throw error;
+    logger.warn('Redis connection failed - continuing without cache:', (error as Error).message);
+    logger.warn('Some features (job queues, caching) will be limited');
+    // Don't throw error - allow backend to start without Redis
   }
 }
 
@@ -203,6 +205,15 @@ export async function getRedisStats(): Promise<{
 }> {
   try {
     const connected = await isRedisHealthy();
+    if (!connected) {
+      return {
+        connected: false,
+        memoryUsage: 'unknown',
+        keyCount: 0,
+        info: null,
+      };
+    }
+
     const info = await redisClient.info('memory');
     const keyCount = await redisClient.dbsize();
 

@@ -27,6 +27,11 @@ export interface Lead {
   created_at: string;
 }
 
+export interface LeadsResponse {
+  leads: Lead[];
+  total: number;
+}
+
 export interface LeadsState {
   // State
   leads: Lead[];
@@ -98,7 +103,7 @@ export const useLeadStore = create<LeadsState>()((set, get) => ({
       }
 
       if (response.data) {
-        const { leads, total } = response.data;
+        const { leads, total } = response.data as LeadsResponse;
         const totalPages = Math.ceil(total / get().pagination.limit);
 
         set({

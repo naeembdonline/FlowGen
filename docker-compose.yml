@@ -1,9 +1,10 @@
 # ============================================================================
 # FLOWGEN LEAD GENERATION SAAS - DOCKER COMPOSE
 # ============================================================================
-# Local development environment setup
+# Complete local development environment setup
 # Usage: docker-compose up -d
 # ============================================================================
+
 version: '3.8'
 
 services:
@@ -12,7 +13,7 @@ services:
   # ----------------------------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: fikerflow-redis
+    container_name: flowgen-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -25,49 +26,72 @@ services:
       timeout: 3s
       retries: 5
     networks:
-      - fikerflow-network
+      - flowgen-network
 
   # ----------------------------------------------------------------------------
-  # POSTGRESQL - Local Database (Optional)
+  # BACKEND API - Node.js/Express Server
   # ----------------------------------------------------------------------------
-  # NOTE: We're using Supabase for production, but this is available
-  # for local development if you prefer not to use Supabase locally
-  # postgres:
-  #   image: postgres:15-alpine
-  #   container_name: fikerflow-postgres
-  #   restart: unless-stopped
-  #   ports:
-  #     - "5432:5432"
-  #   environment:
-  #     POSTGRES_DB: fikerflow
-  #     POSTGRES_USER: fikerflow_user
-  #     POSTGRES_PASSWORD: fikerflow_password
-  #   volumes:
-  #     - postgres-data:/var/lib/postgresql/data
-  #   healthcheck:
-  #     test: ["CMD-SHELL", "pg_isready -U fikerflow_user"]
-  #     interval: 10s
-  #     timeout: 5s
-  #     retries: 5
-  #   networks:
-  #     - fikerflow-network
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: flowgen-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - FRONTEND_URL=http://localhost:3000
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3001/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - flowgen-network
 
   # ----------------------------------------------------------------------------
-  # REDIS INSIGHT (Optional) - Redis GUI
+  # FRONTEND - Next.js Web Application
   # ----------------------------------------------------------------------------
-  # Uncomment to use Redis Insight for visualizing Redis data
-  # redis-insight:
-  #   image: redislabs/redisinsight:latest
-  #   container_name: fikerflow-redis-insight
-  #   restart: unless-stopped
-  #   ports:
-  #     - "8001:8001"
-  #   volumes:
-  #     - redis-insight-data:/db
-  #   depends_on:
-  #     - redis
-  #   networks:
-  #     - fikerflow-network
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: flowgen-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - flowgen-network
 
 # ----------------------------------------------------------------------------
 # VOLUMES - Persistent Data Storage
@@ -75,16 +99,12 @@ services:
 volumes:
   redis-data:
     driver: local
-  # postgres-data:
-  #   driver: local
-  # redis-insight-data:
-  #   driver: local
 
 # ----------------------------------------------------------------------------
 # NETWORKS - Service Communication
 # ----------------------------------------------------------------------------
 networks:
-  fikerflow-network:
+  flowgen-network:
     driver: bridge
 
 # ============================================================================
@@ -98,10 +118,13 @@ networks:
 #   docker-compose down
 #
 # View logs:
+#   docker-compose logs -f
+#   docker-compose logs -f backend
+#   docker-compose logs -f frontend
 #   docker-compose logs -f redis
 #
 # Restart a service:
-#   docker-compose restart redis
+#   docker-compose restart backend
 #
 # Remove all data and start fresh:
 #   docker-compose down -v
@@ -110,29 +133,70 @@ networks:
 # SERVICE ACCESS POINTS
 # ============================================================================
 #
+# Frontend (Next.js):
+#   URL: http://localhost:3000
+#   Container: flowgen-frontend
+#
+# Backend (Express API):
+#   URL: http://localhost:3001
+#   Health: http://localhost:3001/health
+#   API Base: http://localhost:3001/api/v1
+#   Container: flowgen-backend
+#
 # Redis:
 #   Host: localhost
 #   Port: 6379
-#   Connection string: redis://localhost:6379
+#   Container: flowgen-redis
 #
-# Redis Insight (if enabled):
-#   URL: http://localhost:8001
+# ============================================================================
+# SERVICE COMMUNICATION (Internal Docker Network)
+# ============================================================================
+#
+# Frontend → Backend:
+#   http://backend:3001
+#
+# Backend → Redis:
+#   redis://redis:6379
+#
+# Backend → Frontend (CORS):
+#   http://frontend:3000
+#
+# ============================================================================
+# HEALTH CHECKS
+# ============================================================================
+#
+# Backend Health:
+#   curl http://localhost:3001/health
+#   curl http://localhost:3001/api/v1/health
+#
+# Frontend Health (if implemented):
+#   curl http://localhost:3000/api/health
+#
+# Redis Health:
+#   docker exec flowgen-redis redis-cli ping
 #
 # ============================================================================
 # TROUBLESHOOTING
 # ============================================================================
 #
-# Redis connection refused:
-#   - Check if container is running: docker-compose ps
-#   - Check logs: docker-compose logs redis
-#   - Ensure port 6379 is not in use by another application
+# Services not starting:
+#   - Check if ports 3000, 3001, 6379 are available
+#   - Check logs: docker-compose logs [service-name]
+#   - Verify .env file exists with required variables
 #
-# Data not persisting:
-#   - Volumes are defined above and should persist
-#   - To clear data: docker-compose down -v
+# Connection issues:
+#   - Ensure all services are on the same network
+#   - Check service health: docker-compose ps
+#   - Verify health checks are passing
 #
-# Performance issues:
-#   - Allocate more memory to Docker Desktop
-#   - Recommended: 4GB+ RAM for smooth operation
+# Database connection issues:
+#   - Check Supabase credentials in .env
+#   - Verify Supabase project is active
+#   - Check backend logs for Redis connection errors
+#
+# Build issues:
+#   - Remove node_modules: docker-compose down -v
+#   - Rebuild: docker-compose build --no-cache
+#   - Check Dockerfile for each service
 #
 # ============================================================================

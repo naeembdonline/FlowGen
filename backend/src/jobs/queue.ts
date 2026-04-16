@@ -92,12 +92,22 @@ queueEvents.on('stalled', (jobId) => {
 /**
  * Initialize the message queue
  * Creates the queue if it doesn't exist and sets up error handlers
+ * Note: Returns null if Redis is not available
  */
-export async function initializeQueue(): Promise<typeof messageQueue> {
+export async function initializeQueue(): Promise<typeof messageQueue | null> {
   try {
-    // Verify queue is ready
-    await messageQueue.isReady();
-    logger.debug('Message queue initialized successfully');
+    // Add timeout to prevent hanging if Redis is unavailable
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Queue initialization timeout')), 5000)
+    );
+
+    // Verify queue is ready with timeout
+    await Promise.race([
+      messageQueue.isReady(),
+      timeoutPromise
+    ]);
+
+    logger.info('✓ Message queue initialized successfully');
 
     // Handle queue errors
     messageQueue.on('error', (error) => {
@@ -107,8 +117,8 @@ export async function initializeQueue(): Promise<typeof messageQueue> {
     // Return the queue instance
     return messageQueue;
   } catch (error) {
-    logger.error('Failed to initialize message queue:', error);
-    throw error;
+    logger.warn('Message queue initialization failed - Redis not available:', (error as Error).message);
+    return null; // Return null instead of throwing
   }
 }
 

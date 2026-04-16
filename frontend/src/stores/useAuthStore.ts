@@ -25,6 +25,11 @@ export interface User {
   };
 }
 
+export interface AuthResponse {
+  token: string;
+  user: User;
+}
+
 export interface AuthState {
   // State
   user: User | null;
@@ -77,7 +82,7 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (response.data) {
-            const { token, user } = response.data;
+            const { token, user } = response.data as AuthResponse;
 
             // Store token in API client
             api.setAuthToken(token);
@@ -131,7 +136,7 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (response.data) {
-            const { token, user } = response.data;
+            const { token, user } = response.data as AuthResponse;
 
             // Store token in API client
             api.setAuthToken(token);
@@ -208,7 +213,7 @@ export const useAuthStore = create<AuthState>()(
             return false;
           }
 
-          const { token: newToken } = response.data;
+          const { token: newToken } = response.data as AuthResponse;
 
           // Update token
           api.setAuthToken(newToken);

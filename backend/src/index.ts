@@ -153,30 +153,53 @@ app.use(errorHandler);
 
 async function startServer() {
   try {
-    // Initialize database connection
+    // Initialize database connection (optional for development)
     logger.info('Initializing database connection...');
-    await initializeDatabase();
-    logger.info('✓ Database connected successfully');
+    try {
+      await initializeDatabase();
+      logger.info('✓ Database connected successfully');
+    } catch (dbError) {
+      logger.warn('Database initialization failed - continuing with limited functionality');
+    }
 
-    // Initialize Redis connection
+    // Initialize Redis connection (optional for development)
     logger.info('Initializing Redis connection...');
-    await initializeRedis();
-    logger.info('✓ Redis connected successfully');
+    try {
+      await initializeRedis();
+      logger.info('✓ Redis connected successfully');
+    } catch (redisError) {
+      logger.warn('Redis initialization failed - continuing without caching');
+    }
 
-    // Initialize Bull queue
+    // Initialize Bull queue (only if Redis is available)
     logger.info('Initializing job queue...');
-    const messageQueue = await initializeQueue();
-    logger.info('✓ Job queue initialized successfully');
+    let messageQueue: any = null;
+    try {
+      messageQueue = await initializeQueue();
+      logger.info('✓ Job queue initialized successfully');
+    } catch (queueError) {
+      logger.warn('Job queue initialization failed - continuing without queue functionality');
+    }
 
-    // Start message queue worker
-    logger.info('Starting message queue worker...');
-    messageWorker(messageQueue);
-    logger.info('✓ Message queue worker started');
+    // Start message queue worker (only if queue is available)
+    if (messageQueue) {
+      try {
+        logger.info('Starting message queue worker...');
+        messageWorker(messageQueue);
+        logger.info('✓ Message queue worker started');
+      } catch (workerError) {
+        logger.warn('Message queue worker failed to start');
+      }
+    }
 
-    // Initialize scraping queue service
-    logger.info('Initializing scraping queue service...');
-    await scrapingQueueService.initialize();
-    logger.info('✓ Scraping queue service initialized');
+    // Initialize scraping queue service (optional)
+    try {
+      logger.info('Initializing scraping queue service...');
+      await scrapingQueueService.initialize();
+      logger.info('✓ Scraping queue service initialized');
+    } catch (scrapingError) {
+      logger.warn('Scraping queue service failed to initialize - continuing without scraping');
+    }
 
     // Create HTTP server
     const httpServer = createServer(app);

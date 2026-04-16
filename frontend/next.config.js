@@ -1,43 +1,91 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Expose environment variables to the browser (only those prefixed with NEXT_PUBLIC_)
+  // =================================================================
+  // ENVIRONMENT VARIABLES
+  // =================================================================
   env: {
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
-    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1',
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
   },
 
-  // Enable React strict mode for better development experience
+  // =================================================================
+  // REACT CONFIGURATION
+  // =================================================================
   reactStrictMode: true,
 
-  // Optimize images
+  // =================================================================
+  // IMAGE OPTIMIZATION
+  // =================================================================
   images: {
-    domains: ['localhost'],
     remotePatterns: [
       {
         protocol: 'https',
         hostname: '**.supabase.co',
       },
+      {
+        protocol: 'https',
+        hostname: '**.cloudinary.com',
+      },
+      {
+        protocol: 'https',
+        hostname: '**.githubusercontent.com',
+      },
     ],
   },
 
-  // Webpack configuration for any special module handling
-  webpack: (config) => {
-    config.externals = [...(config.externals || []), { canvas: 'canvas' }];
+  // =================================================================
+  // WEBPACK CONFIGURATION
+  // =================================================================
+  webpack: (config, { isServer }) => {
+    // Fix for canvas module (if using charts/graphics)
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+
     return config;
   },
 
-  // Experimental features
+  // =================================================================
+  // EXPERIMENTAL FEATURES (Next.js 15 Compatible)
+  // =================================================================
   experimental: {
-    // Enable server actions (if needed)
-    serverActions: true,
+    serverActions: {
+      bodySizeLimit: '2mb',
+    },
   },
 
-  // Logging
+  // =================================================================
+  // LOGGING CONFIGURATION
+  // =================================================================
   logging: {
     fetches: {
       fullUrl: true,
     },
+  },
+
+  // =================================================================
+  // OUTPUT CONFIGURATION
+  // =================================================================
+  output: 'standalone',
+
+  // =================================================================
+  // TYPESCRIPT CONFIGURATION
+  // =================================================================
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+
+  // =================================================================
+  // ESLINT CONFIGURATION
+  // =================================================================
+  eslint: {
+    ignoreDuringBuilds: false,
   },
 };
 

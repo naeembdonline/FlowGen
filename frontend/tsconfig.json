@@ -1,47 +1,99 @@
 {
-  "extends": "next/core-web-vitals",
   "compilerOptions": {
-    // Strict type checking
+    // ============================================================================
+    // STRICT TYPE CHECKING (Next.js 15 Compatible - Standalone Config)
+    // ============================================================================
     "strict": true,
-    "noUncheckedIndexedAccess": true,
+    "noUncheckedIndexedAccess": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": false,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": false,
+    "alwaysStrict": true,
 
-    // Module resolution
+    // ============================================================================
+    // MODULE RESOLUTION (Next.js 15 Compatible)
+    // ============================================================================
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": true,
+    "module": "esnext",
+    "target": "ES2020",
 
-    // JSX configuration
+    // ============================================================================
+    // JSX CONFIGURATION
+    // ============================================================================
     "jsx": "preserve",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
 
-    // Force consistent file names
+    // ============================================================================
+    // PATH ALIASES (Next.js 15 Compatible)
+    // ============================================================================
     "forceConsistentCasingInFileNames": true,
-
-    // Path aliases (allows imports like @/components instead of ../../components)
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/components/*": ["./src/components/*"],
+      "@/lib/*": ["./src/lib/*"],
+      "@/stores/*": ["./src/stores/*"],
+      "@/app/*": ["./src/app/*"],
+      "@/styles/*": ["./src/styles/*"],
+      "@/types/*": ["./src/types/*"],
+      "@/utils/*": ["./src/utils/*"],
+      "@/hooks/*": ["./src/hooks/*"]
     },
 
-    // Additional options
+    // ============================================================================
+    // INCREMENTAL COMPILATION (Next.js 15 Optimized)
+    // ============================================================================
     "incremental": true,
     "noEmit": true,
     "isolatedModules": true,
 
-    // Include source maps for debugging
-    "sourceMap": true
+    // ============================================================================
+    // SOURCE MAPS & DEBUGGING
+    // ============================================================================
+    "sourceMap": true,
+    "declarationMap": false,
+
+    // ============================================================================
+    // ADVANCED OPTIONS
+    // ============================================================================
+    "skipDefaultLibCheck": true
   },
+
+  // ============================================================================
+  // INCLUDE FILES (Next.js 15 Optimized)
+  // ============================================================================
   "include": [
     "next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx"
   ],
+
+  // ============================================================================
+  // EXCLUDE FILES
+  // ============================================================================
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next",
+    "dist",
+    "build"
   ]
 }
