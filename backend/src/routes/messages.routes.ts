@@ -7,15 +7,20 @@
 
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
+
+// ============================================================================
+// APPLY AUTHENTICATION TO ALL ROUTES (except webhooks which need public access)
+// ============================================================================
 
 /**
  * GET /api/v1/messages
  * List all messages for current tenant
  * Query params: page, limit, status, campaignId
  */
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', authenticateToken, asyncHandler(async (req, res) => {
   // TODO: Implement in Phase 4
   res.status(200).json({
     messages: [],
@@ -32,7 +37,7 @@ router.get('/', asyncHandler(async (req, res) => {
  * GET /api/v1/messages/:id
  * Get a single message by ID
  */
-router.get('/:id', asyncHandler(async (req, res) => {
+router.get('/:id', authenticateToken, asyncHandler(async (req, res) => {
   // TODO: Implement in Phase 4
   res.status(200).json({
     message: null,
@@ -43,6 +48,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
  * POST /api/v1/messages/webhook
  * Webhook endpoint for receiving message status updates
  * Used by Evolution API (WhatsApp) and Brevo (Email)
+ * NOTE: Webhooks are publicly accessible but should verify request signatures in production
  */
 router.post('/webhook', asyncHandler(async (req, res) => {
   // TODO: Implement in Phase 4

@@ -266,7 +266,7 @@ export function LeadImportForm() {
               <Checkbox
                 id="extractEmails"
                 checked={formData.extractEmails}
-                onCheckedChange={(checked) => handleInputChange('extractEmails', checked)}
+                onCheckedChange={(checked: boolean) => handleInputChange('extractEmails', checked)}
                 disabled={loading}
               />
               <Label htmlFor="extractEmails" className="cursor-pointer">

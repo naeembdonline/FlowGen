@@ -1,0 +1,233 @@
+================================================================================
+  MANUAL DEPLOYMENT GUIDE - If automated scripts don't work
+================================================================================
+
+If the automated deployment scripts don't work, follow these simple steps:
+
+--------------------------------------------------------------------------------
+STEP 1: SETUP PASSWORDLESS SSH (OPTIONAL BUT RECOMMENDED)
+--------------------------------------------------------------------------------
+
+Open Command Prompt and run:
+
+    SSH_PASSWORDLESS_SETUP.bat
+
+This will allow you to deploy without entering passwords every time.
+
+--------------------------------------------------------------------------------
+STEP 2: UPLOAD FILES TO SERVER
+--------------------------------------------------------------------------------
+
+OPTION A: Use EASY_DEPLOY.bat
+    - Double-click: EASY_DEPLOY.bat
+    - Enter your server password when prompted
+    - Wait for upload and deployment to complete
+
+OPTION B: Manual Upload (if OPTION A fails)
+
+Using PowerShell:
+    cd "F:\Parsa\Lead Saas"
+    $env:TEMP\fikerflow-deploy  # Create temp folder
+    # Manually copy files to server using FileZilla or WinSCP
+
+Using FileZilla (GUI method):
+    1. Download FileZilla from https://filezilla-project.org/
+    2. Open FileZilla
+    3. Enter connection details:
+       Host: 72.60.234.138
+       Username: root
+       Password: [your server password]
+       Port: 22
+    4. Click Quickconnect
+    5. Navigate to: F:\Parsa\Lead Saas
+    6. Upload these files/folders to /root/fikerflow-lead-saas/:
+       - backend/ (entire folder)
+       - frontend/ (entire folder)
+       - docker-compose.production.yml
+       - nginx.conf
+
+--------------------------------------------------------------------------------
+STEP 3: DEPLOY ON SERVER
+--------------------------------------------------------------------------------
+
+Once files are uploaded, SSH into your server:
+
+    ssh root@72.60.234.138
+
+Then run these commands:
+
+    cd /root/fikerflow-lead-saas
+    mkdir -p backend/src frontend/src logs backups
+
+    # Build and start containers
+    docker-compose -f docker-compose.production.yml build
+    docker-compose -f docker-compose.production.yml up -d
+
+    # Wait for containers to start
+    sleep 15
+
+    # Check status
+    docker-compose -f docker-compose.production.yml ps
+
+    # Test health
+    curl http://localhost:3001/health
+
+--------------------------------------------------------------------------------
+STEP 4: CONFIGURE NGINX
+--------------------------------------------------------------------------------
+
+Still on the server, create Nginx configuration:
+
+    cat > /etc/nginx/sites-available/leads.naeemmia.bd << 'EOF'
+    server {
+        listen 80;
+        server_name leads.naeemmia.bd www.leads.naeemmia.bd;
+        return 301 https://$server_name$request_uri;
+    }
+
+    server {
+        listen 443 ssl http2;
+        server_name leads.naeemmia.bd www.leads.naeemmia.bd;
+
+        ssl_certificate /etc/letsencrypt/live/leads.naeemmia.bd/fullchain.pem;
+        ssl_certificate_key /etc/letsencrypt/live/leads.naeemmia.bd/privkey.pem;
+        ssl_protocols TLSv1.2 TLSv1.3;
+
+        location / {
+            proxy_pass http://127.0.0.1:3000;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection 'upgrade';
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /api/ {
+            proxy_pass http://127.0.0.1:3001;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /health {
+            proxy_pass http://127.0.0.1:3001/health;
+        }
+    }
+    EOF
+
+    # Enable the site
+    ln -s /etc/nginx/sites-available/leads.naeemmia.bd /etc/nginx/sites-enabled/
+
+    # Test Nginx
+    nginx -t
+
+    # Reload Nginx
+    systemctl reload nginx
+
+--------------------------------------------------------------------------------
+STEP 5: GET SSL CERTIFICATE
+--------------------------------------------------------------------------------
+
+On the server, run:
+
+    certbot certonly --webroot -w /var/www/html \
+      -d leads.naeemmia.bd \
+      -d www.leads.naeemmia.bd \
+      --email admin@fikerflow.com \
+      --agree-tos \
+      --no-eff-email
+
+Or if that doesn't work:
+
+    certbot certonly --standalone \
+      -d leads.naeemmia.bd \
+      -d www.leads.naeemmia.bd \
+      --email admin@fikerflow.com \
+      --agree-tos \
+      --no-eff-email \
+      --pre-hook "systemctl stop nginx" \
+      --post-hook "systemctl start nginx"
+
+--------------------------------------------------------------------------------
+STEP 6: TEST YOUR APPLICATION
+--------------------------------------------------------------------------------
+
+    # Test backend
+    curl http://localhost:3001/health
+
+    # Check containers
+    docker ps
+
+    # Check logs if needed
+    docker logs flowgen-backend
+    docker logs flowgen-frontend
+
+Then visit in your browser:
+    https://leads.naeemmia.bd
+    https://leads.naeemmia.bd/health
+
+--------------------------------------------------------------------------------
+TROUBLESHOOTING
+--------------------------------------------------------------------------------
+
+Problem: SSH connection refused
+Solution: Check server IP, ensure SSH service is running on server
+
+Problem: Permission denied
+Solution: Ensure correct password, or setup SSH keys
+
+Problem: Docker not found
+Solution: Install Docker on server:
+    curl -fsSL https://get.docker.com | sh
+    systemctl start docker
+    systemctl enable docker
+
+Problem: Port 3000/3001 already in use
+Solution: Stop conflicting services or change ports in docker-compose
+
+Problem: SSL certificate fails
+Solution: Ensure domain points to server IP, try manual certbot
+
+--------------------------------------------------------------------------------
+QUICK SERVER COMMANDS
+--------------------------------------------------------------------------------
+
+SSH into server:
+    ssh root@72.60.234.138
+
+Check running containers:
+    docker ps
+
+View container logs:
+    docker logs flowgen-backend
+    docker logs flowgen-frontend
+
+Restart containers:
+    docker-compose -f /root/fikerflow-lead-saas/docker-compose.production.yml restart
+
+Stop containers:
+    docker-compose -f /root/fikerflow-lead-saas/docker-compose.production.yml stop
+
+Check Nginx status:
+    systemctl status nginx
+
+Restart Nginx:
+    systemctl restart nginx
+
+================================================================================
+NEED HELP?
+================================================================================
+
+If you're still stuck:
+
+1. Check error messages carefully
+2. Ensure server is accessible: ping 72.60.234.138
+3. Verify domain points to server: nslookup leads.naeemmia.bd
+4. Check server has enough disk space: df -h
+5. Verify Docker is running: systemctl status docker
+
+================================================================================

@@ -1,0 +1,195 @@
+================================================================================
+  🚀 MANUAL DEPLOYMENT GUIDE - Step-by-Step Instructions
+================================================================================
+
+When automated deployment fails, use this manual deployment method.
+
+--------------------------------------------------------------------------------
+STEP 1: CREATE DEPLOYMENT PACKAGE
+--------------------------------------------------------------------------------
+
+Run this script to create the deployment package:
+
+    EASY_DEPLOY_MANUAL.bat
+
+This will create: C:\Users\YOUR_USER\AppData\Local\Temp\lead-saas-deploy\lead-saas-upload.zip
+
+Or check your Temp folder for: lead-saas-upload.zip
+
+--------------------------------------------------------------------------------
+STEP 2: UPLOAD ZIP FILE TO SERVER
+--------------------------------------------------------------------------------
+
+METHOD 1: WinSCP (RECOMMENDED - GUI)
+
+1. Download WinSCP: https://winscp.net/
+2. Open WinSCP
+3. Create new site:
+   - File protocol: SFTP
+   - Host name: 72.60.234.138
+   - Port: 22
+   - Username: root
+   - Password: [your server password]
+4. Click "Login"
+5. Navigate to: /root (right panel)
+6. Navigate to your local ZIP file (left panel):
+   - Go to: C:\Users\YOUR_USER\AppData\Local\Temp\lead-saas-deploy\
+   - Find: lead-saas-upload.zip
+7. Drag and drop the ZIP file to /root/ (right panel)
+8. Wait for upload to complete
+
+METHOD 2: FileZilla (GUI)
+
+1. Download FileZilla: https://filezilla-project.org/
+2. Open FileZilla
+3. Quick connect:
+   - Host: 72.60.234.138
+   - Username: root
+   - Password: [your server password]
+   - Port: 22
+4. Press "Quickconnect"
+5. Navigate to: /root (remote site - right panel)
+6. Navigate to ZIP file location (local site - left panel)
+7. Drag and drop: lead-saas-upload.zip to /root/
+
+METHOD 3: PuTTY + PSCP (Command Line)
+
+1. Open Command Prompt
+2. Navigate to Temp folder:
+   cd %TEMP%
+   cd lead-saas-deploy
+3. Upload using PSCP:
+   pscp -P 22 lead-saas-upload.zip root@72.60.234.138:/root/
+
+--------------------------------------------------------------------------------
+STEP 3: DEPLOY ON SERVER
+--------------------------------------------------------------------------------
+
+After uploading the ZIP file, connect to your server:
+
+1. Open PuTTY or Command Prompt
+2. SSH into server:
+   ssh root@72.60.234.138
+   [Enter your password when prompted]
+
+Then run these commands ONE BY ONE:
+
+COMMAND 1: Extract the deployment package
+cd /root
+unzip -q lead-saas-upload.zip -d /tmp/lead-saas
+
+COMMAND 2: Copy files to project directory
+rm -rf /root/lead-saas
+mkdir -p /root/lead-saas
+cp -r /tmp/lead-saas/lead-saas/* /root/lead-saas/
+
+COMMAND 3: Navigate to project directory
+cd /root/lead-saas
+
+COMMAND 4: Make deployment script executable
+chmod +x deploy.sh
+
+COMMAND 5: Run deployment
+bash deploy.sh
+
+OR RUN THIS ONE-LINER (does everything above):
+cd /root && unzip -q lead-saas-upload.zip -d /tmp/lead-saas && rm -rf /root/lead-saas && mkdir -p /root/lead-saas && cp -r /tmp/lead-saas/lead-saas/* /root/lead-saas/ && cd /root/lead-saas && bash deploy.sh
+
+--------------------------------------------------------------------------------
+STEP 4: VERIFY DEPLOYMENT
+--------------------------------------------------------------------------------
+
+After the deployment script completes, verify:
+
+1. Check containers are running:
+   docker ps
+
+2. Test backend health:
+   curl http://localhost:3001/health
+
+3. Check Nginx status:
+   systemctl status nginx
+
+4. Test external access (from your local machine):
+   https://leads.naeemmia.bd
+   https://leads.naeemmia.bd/health
+
+--------------------------------------------------------------------------------
+TROUBLESHOOTING
+--------------------------------------------------------------------------------
+
+Problem: "Permission denied" during upload
+Solution: Check password, ensure you have root access
+
+Problem: "Connection refused"
+Solution: Check server IP, ensure SSH is running on server
+
+Problem: "unzip: command not found"
+Solution: Install unzip: apt install unzip
+
+Problem: "Docker not found"
+Solution: Install Docker: curl -fsSL https://get.docker.com | sh
+
+Problem: "Port 3000/3001 already in use"
+Solution: Stop conflicting services:
+   docker stop $(docker ps -q)
+   systemctl stop nginx
+   Then retry deployment
+
+--------------------------------------------------------------------------------
+QUICK REFERENCE COMMANDS
+--------------------------------------------------------------------------------
+
+SSH into server:
+  ssh root@72.60.234.138
+
+Check deployment status:
+  cd /root/lead-saas
+  docker-compose -f docker-compose.production.yml ps
+
+View logs:
+  docker logs flowgen-backend
+  docker logs flowgen-frontend
+
+Restart containers:
+  docker-compose -f /root/lead-saas/docker-compose.production.yml restart
+
+Stop containers:
+  docker-compose -f /root/lead-saas/docker-compose.production.yml stop
+
+Check Nginx:
+  systemctl status nginx
+  systemctl restart nginx
+
+Test health:
+  curl http://localhost:3001/health
+
+--------------------------------------------------------------------------------
+SUCCESS INDICATORS
+--------------------------------------------------------------------------------
+
+✅ Script shows "DEPLOYMENT COMPLETE!"
+✅ docker ps shows 3 containers (flowgen-backend, flowgen-frontend, flowgen-redis)
+✅ curl http://localhost:3001/health returns {"status":"ok"}
+✅ https://leads.naeemmia.bd loads in browser
+✅ https://leads.naeemmia.bd/health shows health dashboard
+
+================================================================================
+NEED MORE HELP?
+================================================================================
+
+If deployment still fails:
+
+1. Check server connectivity: ping 72.60.234.138
+2. Verify SSH access: ssh root@72.60.234.138 "echo 'SSH works'"
+3. Check disk space: df -h
+4. Check available memory: free -h
+5. Review error messages carefully
+
+Common fixes:
+- Restart SSH service: systemctl restart sshd
+- Check firewall: ufw status
+- Verify DNS: nslookup leads.naeemmia.bd
+- Reboot server if needed: reboot
+
+================================================================================

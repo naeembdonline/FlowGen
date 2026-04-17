@@ -1,0 +1,75 @@
+================================================================================
+  ⚡ QUICK DEPLOYMENT COMMANDS
+================================================================================
+
+Copy and paste these commands after uploading your ZIP file.
+
+--------------------------------------------------------------------------------
+🖥️ STEP 1: Upload ZIP File (Choose ONE method)
+--------------------------------------------------------------------------------
+
+METHOD A: WinSCP (GUI - EASIEST)
+1. Open WinSCP
+2. Connect to: 72.60.234.138 (root / your-password)
+3. Upload: lead-saas-upload.zip to /root/
+
+METHOD B: Command Line
+cd %TEMP%\lead-saas-deploy
+pscp -P 22 lead-saas-upload.zip root@72.60.234.138:/root/
+
+--------------------------------------------------------------------------------
+🔧 STEP 2: Deploy on Server (Copy/Paste ONE-LINER)
+--------------------------------------------------------------------------------
+
+SSH into server first:
+ssh root@72.60.234.138
+
+Then copy/paste this ENTIRE command:
+
+cd /root && unzip -q lead-saas-upload.zip -d /tmp/lead-saas && rm -rf /root/lead-saas && mkdir -p /root/lead-saas && cp -r /tmp/lead-saas/lead-saas/* /root/lead-saas/ && cd /root/lead-saas && bash deploy.sh
+
+--------------------------------------------------------------------------------
+✅ STEP 3: Verify Deployment
+--------------------------------------------------------------------------------
+
+Check containers:
+docker ps
+
+Test health:
+curl http://localhost:3001/health
+
+Open in browser:
+https://leads.naeemmia.bd
+https://leads.naeemmia.bd/health
+
+--------------------------------------------------------------------------------
+🔍 STEP-BY-STEP VERSION (If one-liner fails)
+--------------------------------------------------------------------------------
+
+If the one-liner doesn't work, run these individually:
+
+1. cd /root
+2. unzip -q lead-saas-upload.zip -d /tmp/lead-saas
+3. rm -rf /root/lead-saas
+4. mkdir -p /root/lead-saas
+5. cp -r /tmp/lead-saas/lead-saas/* /root/lead-saas/
+6. cd /root/lead-saas
+7. bash deploy.sh
+
+--------------------------------------------------------------------------------
+📊 Common Issues & Fixes
+--------------------------------------------------------------------------------
+
+ISSUE: "unzip: command not found"
+FIX: apt install unzip -y
+
+ISSUE: "Docker not found"
+FIX: curl -fsSL https://get.docker.com | sh
+
+ISSUE: "Permission denied"
+FIX: Ensure you're logged in as root
+
+ISSUE: "Port already in use"
+FIX: docker stop $(docker ps -q) && systemctl stop nginx
+
+================================================================================

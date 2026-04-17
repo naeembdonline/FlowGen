@@ -1,0 +1,87 @@
+================================================================================
+  ✅ DOMAIN UPDATE COMPLETE - leads.naeemmia.bd
+================================================================================
+
+All deployment scripts, configurations, and documentation have been updated
+to use your actual domain: leads.naeemmia.bd
+
+--------------------------------------------------------------------------------
+FILES UPDATED:
+--------------------------------------------------------------------------------
+
+✅ EASY_DEPLOY.bat - Deployment script now uses leads.naeemmia.bd
+✅ nginx.conf - Server name and SSL paths updated
+✅ docker-compose.production.yml - Environment URLs updated
+✅ backend/.env.production.template - Frontend URL updated
+✅ backend/.env - FRONTEND_URL updated for production
+✅ deploy-to-server.sh - Domain and SSL certificate requests updated
+✅ MANUAL_DEPLOYMENT.txt - Documentation updated
+✅ HOW_TO_DEPLOY.txt - Documentation updated
+✅ PRODUCTION_DEPLOYMENT_GUIDE.md - Documentation updated
+✅ DEPLOYMENT_QUICK_REFERENCE.md - Documentation updated
+
+--------------------------------------------------------------------------------
+KEY CHANGES:
+--------------------------------------------------------------------------------
+
+OLD DOMAIN: leads.fikerflow.com
+NEW DOMAIN: leads.naeemmia.bd
+
+SSL Certificate Path:
+  /etc/letsencrypt/live/leads.naeemmia.bd/fullchain.pem
+  /etc/letsencrypt/live/leads.naeemmia.bd/privkey.pem
+
+Nginx Configuration File:
+  /etc/nginx/sites-available/leads.naeemmia.bd
+
+Environment Variables:
+  FRONTEND_URL=https://leads.naeemmia.bd
+  NEXT_PUBLIC_API_URL=https://leads.naeemmia.bd/api/v1
+  NEXT_PUBLIC_APP_URL=https://leads.naeemmia.bd
+
+--------------------------------------------------------------------------------
+READY TO DEPLOY:
+--------------------------------------------------------------------------------
+
+Your deployment is now configured for the correct domain!
+
+Step 1: Setup SSH keys (one-time)
+  Double-click: SSH_PASSWORDLESS_SETUP.bat
+
+Step 2: Deploy your application
+  Double-click: EASY_DEPLOY.bat
+
+Your application will be live at:
+  https://leads.naeemmia.bd
+  https://leads.naeemmia.bd/health
+
+--------------------------------------------------------------------------------
+SSL CERTIFICATE:
+--------------------------------------------------------------------------------
+
+The deployment script will automatically request an SSL certificate for:
+  - leads.naeemmia.bd
+  - www.leads.naeemmia.bd
+
+Make sure your domain leads.naeemmia.bd points to your server IP: 72.60.234.138
+
+--------------------------------------------------------------------------------
+NEXT STEPS:
+--------------------------------------------------------------------------------
+
+1. Ensure your domain DNS is configured:
+   leads.naeemmia.bd → 72.60.234.138
+
+2. Double-click: SSH_PASSWORDLESS_SETUP.bat
+   (This will setup passwordless SSH for easier deployment)
+
+3. Double-click: EASY_DEPLOY.bat
+   (This will deploy everything automatically)
+
+4. Wait 15 minutes for deployment
+
+5. Visit https://leads.naeemmia.bd
+
+================================================================================
+EVERYTHING IS NOW CONFIGURED FOR YOUR ACTUAL DOMAIN!
+================================================================================

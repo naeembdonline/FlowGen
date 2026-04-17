@@ -1,0 +1,116 @@
+================================================================================
+  FIKERFLOW LEAD SAAS - DEPLOYMENT INSTRUCTIONS
+================================================================================
+
+🚀 ONE-CLICK DEPLOYMENT - Just double-click the file!
+
+--------------------------------------------------------------------------------
+OPTION 1: EASIEST - Double-click the batch file
+--------------------------------------------------------------------------------
+
+1. Open the folder: F:\Parsa\Lead Saas
+2. Double-click: UPLOAD_AND_DEPLOY.bat
+3. Wait for the upload and deployment to complete
+4. Click the link that opens in your browser
+
+That's it! Everything is automated.
+
+--------------------------------------------------------------------------------
+OPTION 2: RUN FROM COMMAND LINE
+--------------------------------------------------------------------------------
+
+Open PowerShell or Command Prompt in the project directory and run:
+
+    UPLOAD_AND_DEPLOY.bat
+
+--------------------------------------------------------------------------------
+OPTION 3: MANUAL STEP-BY-STEP
+--------------------------------------------------------------------------------
+
+Step 1: Upload files to server
+    powershell -ExecutionPolicy Bypass -File upload-to-server.ps1
+
+Step 2: SSH into server
+    ssh root@72.60.234.138
+
+Step 3: Run deployment script
+    bash /root/fikerflow-lead-saas/deploy-to-server.sh
+
+Step 4: Visit your site
+    https://leads.fikerflow.com
+
+--------------------------------------------------------------------------------
+WHAT THE SCRIPTS DO AUTOMATICALLY:
+--------------------------------------------------------------------------------
+
+✅ Check your existing setup and protect other websites
+✅ Create all necessary directories
+✅ Configure Nginx safely (won't affect existing sites)
+✅ Get SSL certificate for leads.fikerflow.com
+✅ Build Docker images with Puppeteer dependencies
+✅ Deploy all containers (Backend, Frontend, Redis)
+✅ Test everything is working
+✅ Give you the link to click
+
+--------------------------------------------------------------------------------
+BEFORE YOU START:
+--------------------------------------------------------------------------------
+
+1. Make sure your .env file is configured at:
+   F:\Parsa\Lead Saas\backend\.env
+
+2. Ensure your domain leads.fikerflow.com points to 72.60.234.138
+
+3. Have your Supabase and API keys ready in the .env file
+
+--------------------------------------------------------------------------------
+SAFETY GUARANTEES:
+--------------------------------------------------------------------------------
+
+✅ Only affects containers with "flowgen-" prefix
+✅ Creates separate Nginx configuration (doesn't modify existing ones)
+✅ Tests Nginx config before applying changes
+✅ Uses webroot SSL method first (doesn't stop existing services)
+✅ Shows existing containers/sites before making changes
+
+Your existing websites and Docker containers will NOT be touched!
+
+--------------------------------------------------------------------------------
+AFTER DEPLOYMENT:
+--------------------------------------------------------------------------------
+
+Access your application at:
+  Frontend: https://leads.fikerflow.com
+  API:      https://leads.fikerflow.com/api/v1
+  Health:   https://leads.fikerflow.com/health
+
+Useful commands for server management:
+  View logs: docker-compose -f /root/fikerflow-lead-saas/docker-compose.production.yml logs -f
+  Restart:   docker-compose -f /root/fikerflow-lead-saas/docker-compose.production.yml restart
+  Stop all:  docker-compose -f /root/fikerflow-lead-saas/docker-compose.production.yml stop
+
+--------------------------------------------------------------------------------
+TROUBLESHOOTING:
+--------------------------------------------------------------------------------
+
+If the deployment fails:
+
+1. Check SSH connection: ssh root@72.60.234.138
+2. Check server logs: ssh root@72.60.234.138 "docker ps"
+3. Check Nginx status: ssh root@72.60.234.138 "systemctl status nginx"
+
+For manual SSL certificate:
+  ssh root@72.60.234.138 "certbot certonly --webroot -w /var/www/html -d leads.fikerflow.com -d www.leads.fikerflow.com"
+
+--------------------------------------------------------------------------------
+NEED HELP?
+--------------------------------------------------------------------------------
+
+Check these files for more information:
+  - PRODUCTION_DEPLOYMENT_GUIDE.md (detailed guide)
+  - DEPLOYMENT_QUICK_REFERENCE.md (command reference)
+  - DEPLOYMENT_CHECKLIST.md (step-by-step checklist)
+
+================================================================================
+READY TO DEPLOY? Just double-click: UPLOAD_AND_DEPLOY.bat
+================================================================================

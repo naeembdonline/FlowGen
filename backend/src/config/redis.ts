@@ -1,117 +1,123 @@
 // ============================================================================
-// FIKERFLOW LEAD GENERATION SAAS - REDIS CONFIGURATION
+// FLOWGEN LEAD GENERATION SAAS - CACHE CONFIGURATION (IN-MEMORY MODE)
 // ============================================================================
-// This file configures Redis, which is used for:
-// 1. Job queues (Bull) for async message processing
-// 2. Caching API responses
-// 3. Session storage (optional)
+// This configuration uses in-memory cache instead of Redis
+// Perfect for local Windows development without Redis installation
 // ============================================================================
 
-import Redis from 'ioredis';
 import { logger } from '../utils/logger';
+import cacheService from '../services/cache.service';
 
 // ============================================================================
-// CONFIGURATION
+// CACHE CLIENT INTERFACE (matches Redis API for compatibility)
 // ============================================================================
 
-const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const redisPassword = process.env.REDIS_PASSWORD;
-
-// Parse Redis URL
-// Format: redis://[password@]host:port
-const parsedUrl = new URL(redisUrl);
-const redisHost = parsedUrl.hostname;
-const redisPort = parseInt(parsedUrl.port, 10);
-const redisDb = parseInt(parsedUrl.pathname.slice(1) || '0', 10);
-
-// ============================================================================
-// REDIS CLIENT
-// ============================================================================
-
-// Create Redis client with connection configuration
-export const redisClient = new Redis({
-  host: redisHost,
-  port: redisPort,
-  db: redisDb,
-  password: redisPassword || undefined,
-  retryStrategy: (times) => {
-    // Retry connection with exponential backoff
-    const delay = Math.min(times * 50, 2000);
-    return delay;
+export const redisClient = {
+  // Basic operations (compatible with Redis API)
+  set: async (key: string, value: string): Promise<'OK'> => {
+    await cacheService.set(key, value);
+    return 'OK';
   },
-  maxRetriesPerRequest: 3,
-  enableReadyCheck: true,
-  enableOfflineQueue: true,
-  // Connection timeout
-  connectTimeout: 10000,
-  // Command timeout
-  lazyConnect: false,
-});
+
+  setex: async (key: string, seconds: number, value: string): Promise<'OK'> => {
+    await cacheService.set(key, value, seconds);
+    return 'OK';
+  },
+
+  get: async (key: string): Promise<string | null> => {
+    return await cacheService.get<string>(key);
+  },
+
+  del: async (...keys: string[]): Promise<number> => {
+    let count = 0;
+    for (const key of keys) {
+      const deleted = await cacheService.delete(key);
+      if (deleted) count++;
+    }
+    return count;
+  },
+
+  keys: async (pattern: string): Promise<string[]> => {
+    return await cacheService.keys(pattern);
+  },
+
+  dbsize: async (): Promise<number> => {
+    return await cacheService.size();
+  },
+
+  ping: async (): Promise<'PONG'> => {
+    return 'PONG';
+  },
+
+  flushdb: async (): Promise<'OK'> => {
+    await cacheService.clear();
+    return 'OK';
+  },
+
+  // Info command (mock)
+  info: async (section?: string): Promise<string> => {
+    if (section === 'memory') {
+      return `# Memory
+used_memory_human:1MB
+used_memory:1000000`;
+    }
+    return `# Server
+redis_version:7.0.0 (in-memory)
+uptime_in_days:1
+connected_clients:1
+used_memory_human:1MB`;
+  },
+
+  // Event handlers (mock - for compatibility)
+  on: (event: string, handler: Function) => {
+    // Mock event handlers
+    logger.debug(`Cache event handler registered: ${event}`);
+  },
+
+  // Connection methods (mock)
+  connect: async () => {
+    logger.debug('Cache: connect called');
+  },
+
+  disconnect: async () => {
+    logger.debug('Cache: disconnect called');
+  },
+
+  quit: async () => {
+    await cacheService.close();
+    return 'OK';
+  }
+};
 
 // ============================================================================
-// EVENT HANDLERS
+// CACHE INITIALIZATION (Always uses in-memory)
 // ============================================================================
 
-// Log successful connection
-redisClient.on('connect', () => {
-  logger.debug('Redis connecting...');
-});
-
-// Log when connection is ready
-redisClient.on('ready', () => {
-  logger.debug('Redis connection ready');
-});
-
-// Log connection errors
-redisClient.on('error', (error) => {
-  logger.error('Redis connection error:', error);
-});
-
-// Log reconnection attempts
-redisClient.on('reconnecting', (delay) => {
-  logger.warn(`Redis reconnecting in ${delay}ms`);
-});
-
-// Log when connection is closed
-redisClient.on('close', () => {
-  logger.debug('Redis connection closed');
-});
-
-// ============================================================================
-// REDIS INITIALIZATION
-// ============================================================================
-
-/**
- * Initialize Redis connection and verify connectivity
- * This function tests the connection and logs the result
- * Note: Redis connection is optional for development - backend will continue if Redis is unavailable
- */
 export async function initializeRedis(): Promise<void> {
   try {
-    // Test connection with PING command
-    const response = await redisClient.ping();
-    if (response === 'PONG') {
-      logger.info('✓ Redis connection verified successfully');
+    // Check if in-memory mode is forced
+    const forceInMemory = process.env.USE_IN_MEMORY_CACHE === 'true' ||
+                          process.env.SKIP_REDIS === 'true';
+
+    if (forceInMemory) {
+      logger.info('✅ USE_IN_MEMORY_CACHE=true - Forcing in-memory cache mode');
     } else {
-      throw new Error(`Unexpected PING response: ${response}`);
+      logger.info('✅ Using in-memory cache (perfect for Windows development)');
     }
+
+    await cacheService.initialize();
+    logger.info('✅ Cache service ready (In-Memory Mode)');
   } catch (error) {
-    logger.warn('Redis connection failed - continuing without cache:', (error as Error).message);
-    logger.warn('Some features (job queues, caching) will be limited');
-    // Don't throw error - allow backend to start without Redis
+    logger.error('Failed to initialize cache service:', error);
+    // Don't throw - allow server to continue
+    logger.warn('⚠️  Continuing without cache - some features may be limited');
   }
 }
 
 // ============================================================================
-// HELPER FUNCTIONS
+// CACHE HELPER FUNCTIONS (same interface as before)
 // ============================================================================
 
-/**
- * Set a value in Redis with expiration
- * @param key - The cache key
- * @param value - The value to store (will be JSON stringified)
- * @param ttlSeconds - Time to live in seconds
- */
 export async function cacheSet(
   key: string,
   value: any,
@@ -119,7 +125,7 @@ export async function cacheSet(
 ): Promise<void> {
   try {
     const serialized = JSON.stringify(value);
-    await redisClient.setex(key, ttlSeconds, serialized);
+    await cacheService.set(key, serialized, ttlSeconds);
     logger.debug(`Cached key: ${key} (TTL: ${ttlSeconds}s)`);
   } catch (error) {
     logger.error(`Failed to cache key ${key}:`, error);
@@ -127,14 +133,9 @@ export async function cacheSet(
   }
 }
 
-/**
- * Get a value from Redis cache
- * @param key - The cache key
- * @returns The cached value or null if not found
- */
 export async function cacheGet<T = any>(key: string): Promise<T | null> {
   try {
-    const data = await redisClient.get(key);
+    const data = await cacheService.get<string>(key);
     if (!data) return null;
 
     return JSON.parse(data) as T;
@@ -144,13 +145,9 @@ export async function cacheGet<T = any>(key: string): Promise<T | null> {
   }
 }
 
-/**
- * Delete a value from Redis cache
- * @param key - The cache key to delete
- */
 export async function cacheDelete(key: string): Promise<void> {
   try {
-    await redisClient.del(key);
+    await cacheService.delete(key);
     logger.debug(`Deleted cached key: ${key}`);
   } catch (error) {
     logger.error(`Failed to delete cached key ${key}:`, error);
@@ -158,16 +155,13 @@ export async function cacheDelete(key: string): Promise<void> {
   }
 }
 
-/**
- * Clear all cache keys matching a pattern
- * Use with caution - can affect many keys
- * @param pattern - The key pattern to match (e.g., "user:*")
- */
 export async function cacheClearPattern(pattern: string): Promise<void> {
   try {
-    const keys = await redisClient.keys(pattern);
+    const keys = await cacheService.keys(pattern);
     if (keys.length > 0) {
-      await redisClient.del(...keys);
+      for (const key of keys) {
+        await cacheService.delete(key);
+      }
       logger.debug(`Cleared ${keys.length} keys matching pattern: ${pattern}`);
     }
   } catch (error) {
@@ -177,81 +171,62 @@ export async function cacheClearPattern(pattern: string): Promise<void> {
 }
 
 // ============================================================================
-// REDIS HEALTH CHECK
+// CACHE HEALTH CHECK
 // ============================================================================
 
-/**
- * Check if Redis connection is healthy
- * @returns True if Redis is accessible
- */
 export async function isRedisHealthy(): Promise<boolean> {
   try {
-    const response = await redisClient.ping();
-    return response === 'PONG';
+    return await cacheService.isHealthy();
   } catch {
     return false;
   }
 }
 
-/**
- * Get Redis connection statistics
- * @returns Object with connection info and stats
- */
 export async function getRedisStats(): Promise<{
   connected: boolean;
   memoryUsage: string;
   keyCount: number;
-  info: any;
+  info: string | null;
+  type: 'in-memory';
+  stats: any;
 }> {
   try {
-    const connected = await isRedisHealthy();
-    if (!connected) {
-      return {
-        connected: false,
-        memoryUsage: 'unknown',
-        keyCount: 0,
-        info: null,
-      };
-    }
-
+    const connected = await cacheService.isHealthy();
+    const stats = await cacheService.getStats();
+    const keyCount = await cacheService.size();
     const info = await redisClient.info('memory');
-    const keyCount = await redisClient.dbsize();
 
     return {
       connected,
-      memoryUsage: info.split('\n').find((line) =>
-        line.startsWith('used_memory_human:')
-      )?.split(':')[1] || 'unknown',
+      memoryUsage: '1MB (in-memory)',
       keyCount,
       info,
+      type: 'in-memory',
+      stats,
     };
   } catch (error) {
-    logger.error('Failed to get Redis stats:', error);
+    logger.error('Failed to get cache stats:', error);
     return {
       connected: false,
       memoryUsage: 'unknown',
       keyCount: 0,
       info: null,
+      type: 'in-memory',
+      stats: null,
     };
   }
 }
 
 // ============================================================================
-// GRACEFUL SHUTDOWN
+// CACHE GRACEFUL SHUTDOWN
 // ============================================================================
 
-/**
- * Close Redis connection gracefully
- * Call this when shutting down the application
- */
 export async function closeRedis(): Promise<void> {
   try {
-    await redisClient.quit();
-    logger.info('Redis connection closed gracefully');
+    await cacheService.close();
+    logger.info('Cache service closed gracefully');
   } catch (error) {
-    logger.error('Error closing Redis connection:', error);
-    // Force close if graceful shutdown fails
-    redisClient.disconnect();
+    logger.error('Error closing cache service:', error);
   }
 }
 

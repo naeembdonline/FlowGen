@@ -7,8 +7,14 @@
 
 import { Router } from 'express';
 import { asyncHandler } from '../middleware/errorHandler';
+import { authenticateToken } from '../middleware/auth';
 
 const router = Router();
+
+// ============================================================================
+// APPLY AUTHENTICATION TO ALL ROUTES
+// ============================================================================
+router.use(authenticateToken);
 
 /**
  * GET /api/v1/analytics/overview

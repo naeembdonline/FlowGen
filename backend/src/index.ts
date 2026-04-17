@@ -5,6 +5,147 @@
 // It sets up Express middleware, routes, error handling, and starts the server.
 // ============================================================================
 
+// Import required modules for environment loading
+import dotenv from 'dotenv';
+import { resolve } from 'path';
+import { existsSync } from 'fs';
+
+// ============================================================================
+// DEBUG: Print current directory and search paths
+// ============================================================================
+
+console.log('🔍 ENVIRONMENT VARIABLE LOADING DEBUG');
+console.log('='.repeat(60));
+console.log('__dirname:', __dirname);
+console.log('process.cwd():', process.cwd());
+console.log('Looking for .env at:', resolve(process.cwd(), '.env'));
+
+// ============================================================================
+// ROBUST .env FILE LOADING WITH ABSOLUTE PATHS
+// ============================================================================
+
+// Define multiple possible .env file locations to try
+const possibleEnvPaths = [
+  resolve(process.cwd(), '.env'),                    // Current working directory
+  resolve(__dirname, '.env'),                       // backend/src/.env
+  resolve(__dirname, '../.env'),                     // backend/.env
+  resolve(__dirname, '..', '.env'),                  // backend/.env (alternative)
+  resolve(__dirname, '..', 'backend', '.env'),       // F:\Parsa\Lead Saas\backend\.env
+  resolve(__dirname, '..', '..', 'backend', '.env'),  // Go up two levels
+];
+
+console.log('\n🔍 Searching for .env file in these locations:');
+possibleEnvPaths.forEach((path, index) => {
+  const exists = existsSync(path);
+  console.log(`  ${index + 1}. ${path} - ${exists ? '✅ EXISTS' : '❌ NOT FOUND'}`);
+});
+
+// Try to load .env from each location until one works
+let envLoaded = false;
+let loadedFromPath = null;
+
+for (const envPath of possibleEnvPaths) {
+  if (existsSync(envPath)) {
+    console.log(`\n✅ Found .env file at: ${envPath}`);
+    console.log(`📖 Loading environment variables from: ${envPath}`);
+
+    try {
+      const result = dotenv.config({ path: envPath });
+
+      if (result.error) {
+        console.error(`❌ Error loading .env from ${envPath}:`, result.error.message);
+      } else {
+        // Successfully loaded - verify some keys were loaded
+        const keysBefore = Object.keys(process.env).length;
+        // Parse the file directly to see what variables are available
+        const fs = require('fs');
+        const envContent = fs.readFileSync(envPath, 'utf8');
+        const envLines = envContent.split('\n')
+          .filter(line => line.trim() && !line.startsWith('#'))
+          .map(line => line.split('=')[0].trim());
+
+        console.log(`📊 Found ${envLines.length} environment variables in .env file`);
+        console.log(`🔑 Variables found: ${envLines.slice(0, 5).join(', ')}${envLines.length > 5 ? '...' : ''}`);
+
+        loadedFromPath = envPath;
+        envLoaded = true;
+        console.log(`✅ Successfully loaded .env from: ${envPath}`);
+        break;
+      }
+    } catch (error) {
+      console.error(`❌ Exception loading .env from ${envPath}:`, error.message);
+    }
+  }
+}
+
+if (!envLoaded) {
+  console.error('\n❌ NO .env FILE FOUND IN ANY LOCATION!');
+  console.error('Please ensure .env file exists in one of these locations:');
+  possibleEnvPaths.forEach(path => console.log(`   - ${path}`));
+  console.error('\n🔧 CREATE .env FILE with these minimum contents:');
+  console.error(`
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+PORT=3001
+NODE_ENV=development
+USE_IN_MEMORY_CACHE=true
+  `);
+}
+
+// ============================================================================
+// CLEAN ENVIRONMENT VARIABLES - Remove newlines and spaces
+// ============================================================================
+
+const cleanEnvVar = (value: string | undefined): string | undefined => {
+  if (!value) return undefined;
+  return value.replace(/[\n\r\s]+/g, '').trim();
+};
+
+// Clean critical JWT tokens that might have line breaks or extra spaces
+if (process.env.SUPABASE_URL) {
+  const originalLength = process.env.SUPABASE_URL.length;
+  process.env.SUPABASE_URL = cleanEnvVar(process.env.SUPABASE_URL);
+  console.log(`🧹 Cleaned SUPABASE_URL (${originalLength} -> ${process.env.SUPABASE_URL.length} chars)`);
+}
+
+if (process.env.SUPABASE_ANON_KEY) {
+  const originalLength = process.env.SUPABASE_ANON_KEY.length;
+  process.env.SUPABASE_ANON_KEY = cleanEnvVar(process.env.SUPABASE_ANON_KEY);
+  console.log(`🧹 Cleaned SUPABASE_ANON_KEY (${originalLength} -> ${process.env.SUPABASE_ANON_KEY.length} chars)`);
+}
+
+if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  const originalLength = process.env.SUPABASE_SERVICE_ROLE_KEY.length;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = cleanEnvVar(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  console.log(`🧹 Cleaned SUPABASE_SERVICE_ROLE_KEY (${originalLength} -> ${process.env.SUPABASE_SERVICE_ROLE_KEY.length} chars)`);
+}
+
+if (process.env.Z_AI_API_KEY) {
+  process.env.Z_AI_API_KEY = cleanEnvVar(process.env.Z_AI_API_KEY);
+  console.log(`🧹 Cleaned Z_AI_API_KEY`);
+}
+
+if (process.env.OPENAI_API_KEY) {
+  process.env.OPENAI_API_KEY = cleanEnvVar(process.env.OPENAI_API_KEY);
+  console.log(`🧹 Cleaned OPENAI_API_KEY`);
+}
+
+if (process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = cleanEnvVar(process.env.JWT_SECRET);
+  console.log(`🧹 Cleaned JWT_SECRET`);
+}
+
+// ============================================================================
+// FINAL VERIFICATION
+// ============================================================================
+
+console.log('\n🔍 FINAL ENVIRONMENT CHECK:');
+console.log(`SUPABASE_URL exists: ${!!process.env.SUPABASE_URL}`);
+console.log(`SUPABASE_ANON_KEY exists: ${!!process.env.SUPABASE_ANON_KEY}`);
+console.log(`SUPABASE_SERVICE_ROLE_KEY exists: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
+console.log('='.repeat(60) + '\n');
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';

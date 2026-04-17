@@ -318,10 +318,9 @@ export default function SystemHealthPage() {
   // ==========================================================================
 
   useEffect(() => {
-    if (autoRefresh) {
-      const interval = setInterval(runAllHealthChecks, 30000); // Every 30 seconds
-      return () => clearInterval(interval);
-    }
+    if (!autoRefresh) return;
+    const interval = setInterval(runAllHealthChecks, 30000); // Every 30 seconds
+    return () => clearInterval(interval);
   }, [autoRefresh]);
 
   // ==========================================================================

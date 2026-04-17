@@ -10,33 +10,15 @@ import { asyncHandler, NotFoundError, ValidationError } from '../middleware/erro
 import { scrapingRateLimiter } from '../middleware/rateLimiter';
 import { leadService } from '../services/supabase.service';
 import { puppeteerClusterScraper, GoogleMapsSearchParams } from '../services/puppeteerClusterScraper.service';
-import { getUserTenantId } from '../config/database';
+import { authenticateToken, AuthenticatedRequest, requireTenantId } from '../middleware/auth';
 import { logger } from '../utils/logger';
 
 const router = Router();
 
 // ============================================================================
-// TYPES & INTERFACES
+// APPLY AUTHENTICATION TO ALL ROUTES
 // ============================================================================
-
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    tenant_id: string;
-    role: string;
-  };
-}
-
-// ============================================================================
-// AUTH MIDDLEWARE (placeholder - use actual auth middleware in production)
-// ============================================================================
-
-// TODO: Replace this with actual JWT verification middleware
-const authenticateUser = async (req: AuthRequest, res: Response, next: any) => {
-  // For now, skip auth in Phase 2 testing
-  // In production, verify JWT token and set req.user
-  next();
-};
+router.use(authenticateToken);
 
 // ============================================================================
 // GET /api/v1/leads - List all leads for current tenant
@@ -47,10 +29,9 @@ const authenticateUser = async (req: AuthRequest, res: Response, next: any) => {
  * List all leads for current tenant with pagination and filtering
  * Query params: page, limit, status, category, search
  */
-router.get('/', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
-  // In production, get tenant_id from authenticated user
-  // For now, use a test tenant ID
-  const tenantId = (req.user?.tenant_id) || '11111111-1111-1111-1111-111111111111';
+router.get('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  // SECURITY: Extract tenant_id from authenticated user - NO FALLBACK
+  const tenantId = requireTenantId(req);
 
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 20;
@@ -89,7 +70,7 @@ router.get('/', authenticateUser, asyncHandler(async (req: AuthRequest, res: Res
  * GET /api/v1/leads/:id
  * Get a single lead by ID
  */
-router.get('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
 
   const lead = await leadService.getById(id);
@@ -112,8 +93,9 @@ router.get('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, res: 
  * Import leads from Google Maps using Puppeteer (self-hosted scraper)
  * Body: { location, query?, radius?, minRating?, maxResults? }
  */
-router.post('/import', authenticateUser, scrapingRateLimiter.middleware(), asyncHandler(async (req: AuthRequest, res: Response) => {
-  const tenantId = (req.user?.tenant_id) || '11111111-1111-1111-1111-111111111111';
+router.post('/import', scrapingRateLimiter.middleware(), asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  // SECURITY: Extract tenant_id from authenticated user - NO FALLBACK
+  const tenantId = requireTenantId(req);
 
   // Validate request body
   const { location, query, radius, minRating, maxResults, extractEmails } = req.body;
@@ -248,7 +230,7 @@ router.post('/import', authenticateUser, scrapingRateLimiter.middleware(), async
  * Search for businesses without importing (preview results)
  * Body: { location, query?, radius?, minRating?, maxResults? }
  */
-router.post('/import/search', authenticateUser, scrapingRateLimiter.middleware(), asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/import/search', scrapingRateLimiter.middleware(), asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { location, query, radius, minRating, maxResults } = req.body;
 
   if (!location) {
@@ -297,7 +279,7 @@ router.post('/import/search', authenticateUser, scrapingRateLimiter.middleware()
  * PATCH /api/v1/leads/:id
  * Update a lead
  */
-router.patch('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.patch('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const updates = req.body;
 
@@ -330,7 +312,7 @@ router.patch('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, res
  * DELETE /api/v1/leads/:id
  * Delete a lead
  */
-router.delete('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
 
   logger.info('Deleting lead', { leadId: id });
@@ -355,7 +337,7 @@ router.delete('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, re
  * Delete multiple leads at once
  * Body: { leadIds: string[] }
  */
-router.post('/bulk-delete', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/bulk-delete', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { leadIds } = req.body;
 
   if (!Array.isArray(leadIds) || leadIds.length === 0) {
@@ -398,8 +380,9 @@ router.post('/bulk-delete', authenticateUser, asyncHandler(async (req: AuthReque
  * Export leads to CSV file
  * Query params: status, category
  */
-router.get('/export', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const tenantId = (req.user?.tenant_id) || '11111111-1111-1111-1111-111111111111';
+router.get('/export', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  // SECURITY: Extract tenant_id from authenticated user - NO FALLBACK
+  const tenantId = requireTenantId(req);
   const status = req.query.status as string;
   const category = req.query.category as string;
 

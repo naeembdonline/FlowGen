@@ -6,6 +6,7 @@
 // ============================================================================
 
 import { Router } from 'express';
+import { getSystemHealth, getSimpleHealth } from '../config/health';
 import { isDatabaseHealthy } from '../config/database';
 import { isRedisHealthy, getRedisStats } from '../config/redis';
 
@@ -19,14 +20,9 @@ const router = Router();
  * GET /health
  * Basic health check - returns 200 if server is running
  */
-router.get('/', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
-    environment: process.env.NODE_ENV || 'development',
-    version: process.env.npm_package_version || '1.0.0',
-  });
+router.get('/', async (req, res) => {
+  const health = await getSimpleHealth();
+  res.status(200).json(health);
 });
 
 /**

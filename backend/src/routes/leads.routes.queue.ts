@@ -10,32 +10,15 @@ import { asyncHandler, NotFoundError, ValidationError } from '../middleware/erro
 import { scrapingRateLimiter } from '../middleware/rateLimiter';
 import { leadService } from '../services/supabase.service';
 import { scrapingQueueService, ScrapingJobData } from '../services/scrapingQueue.service';
-import { getUserTenantId } from '../config/database';
+import { authenticateToken, AuthenticatedRequest, requireTenantId } from '../middleware/auth';
 import { logger } from '../utils/logger';
 
 const router = Router();
 
 // ============================================================================
-// TYPES & INTERFACES
+// APPLY AUTHENTICATION TO ALL ROUTES
 // ============================================================================
-
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    tenant_id: string;
-    role: string;
-  };
-}
-
-// ============================================================================
-// AUTH MIDDLEWARE (placeholder - use actual auth middleware in production)
-// ============================================================================
-
-const authenticateUser = async (req: AuthRequest, res: Response, next: any) => {
-  // For now, skip auth in Phase 2 testing
-  // In production, verify JWT token and set req.user
-  next();
-};
+router.use(authenticateToken);
 
 // ============================================================================
 // GET /api/v1/leads - List all leads for current tenant
@@ -46,8 +29,9 @@ const authenticateUser = async (req: AuthRequest, res: Response, next: any) => {
  * List all leads for current tenant with pagination and filtering
  * Query params: page, limit, status, category, search
  */
-router.get('/', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const tenantId = (req.user?.tenant_id) || '11111111-1111-1111-1111-111111111111';
+router.get('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  // SECURITY: Extract tenant_id from authenticated user - NO FALLBACK
+  const tenantId = requireTenantId(req);
 
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 20;
@@ -86,7 +70,7 @@ router.get('/', authenticateUser, asyncHandler(async (req: AuthRequest, res: Res
  * GET /api/v1/leads/:id
  * Get a single lead by ID
  */
-router.get('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
 
   const lead = await leadService.getById(id);
@@ -109,8 +93,9 @@ router.get('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, res: 
  * Import leads using queue-based batch processing (for large requests)
  * Body: { location, query?, radius?, minRating?, maxResults?, extractEmails?, batchSize? }
  */
-router.post('/import', authenticateUser, scrapingRateLimiter.middleware(), asyncHandler(async (req: AuthRequest, res: Response) => {
-  const tenantId = (req.user?.tenant_id) || '11111111-1111-1111-1111-111111111111';
+router.post('/import', scrapingRateLimiter.middleware(), asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  // SECURITY: Extract tenant_id from authenticated user - NO FALLBACK
+  const tenantId = requireTenantId(req);
   const userId = req.user?.id;
 
   // Validate request body
@@ -206,7 +191,7 @@ router.post('/import', authenticateUser, scrapingRateLimiter.middleware(), async
  * GET /api/v1/leads/import/status/:jobId
  * Get the status of a scraping job
  */
-router.get('/import/status/:jobId', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/import/status/:jobId', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { jobId } = req.params;
 
   logger.info('Fetching job status', { jobId });
@@ -240,7 +225,7 @@ router.get('/import/status/:jobId', authenticateUser, asyncHandler(async (req: A
  * GET /api/v1/leads/import/progress/:jobId
  * Get real-time progress of a scraping job
  */
-router.get('/import/progress/:jobId', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/import/progress/:jobId', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { jobId } = req.params;
 
   const progress = scrapingQueueService.getJobProgress(jobId);
@@ -262,7 +247,7 @@ router.get('/import/progress/:jobId', authenticateUser, asyncHandler(async (req:
  * GET /api/v1/leads/import/result/:jobId
  * Get the final result of a completed scraping job
  */
-router.get('/import/result/:jobId', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/import/result/:jobId', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { jobId } = req.params;
 
   const job = await scrapingQueueService.getJob(jobId);
@@ -300,7 +285,7 @@ router.get('/import/result/:jobId', authenticateUser, asyncHandler(async (req: A
  * DELETE /api/v1/leads/import/:jobId
  * Cancel or delete a scraping job
  */
-router.delete('/import/:jobId', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/import/:jobId', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { jobId } = req.params;
 
   logger.info('Deleting job', { jobId });
@@ -321,7 +306,7 @@ router.delete('/import/:jobId', authenticateUser, asyncHandler(async (req: AuthR
  * GET /api/v1/leads/queue/stats
  * Get queue statistics (for admin dashboard)
  */
-router.get('/queue/stats', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.get('/queue/stats', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const stats = await scrapingQueueService.getQueueStats();
 
   res.status(200).json({
@@ -338,7 +323,7 @@ router.get('/queue/stats', authenticateUser, asyncHandler(async (req: AuthReques
  * POST /api/v1/leads/queue/pause
  * Pause the queue (admin only)
  */
-router.post('/queue/pause', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/queue/pause', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   await scrapingQueueService.pauseQueue();
 
   res.status(200).json({
@@ -354,7 +339,7 @@ router.post('/queue/pause', authenticateUser, asyncHandler(async (req: AuthReque
  * POST /api/v1/leads/queue/resume
  * Resume the queue (admin only)
  */
-router.post('/queue/resume', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/queue/resume', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   await scrapingQueueService.resumeQueue();
 
   res.status(200).json({
@@ -370,7 +355,7 @@ router.post('/queue/resume', authenticateUser, asyncHandler(async (req: AuthRequ
  * PATCH /api/v1/leads/:id
  * Update a lead
  */
-router.patch('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.patch('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
   const updates = req.body;
 
@@ -403,7 +388,7 @@ router.patch('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, res
  * DELETE /api/v1/leads/:id
  * Delete a lead
  */
-router.delete('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { id } = req.params;
 
   logger.info('Deleting lead', { leadId: id });
@@ -428,7 +413,7 @@ router.delete('/:id', authenticateUser, asyncHandler(async (req: AuthRequest, re
  * Delete multiple leads at once
  * Body: { leadIds: string[] }
  */
-router.post('/bulk-delete', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
+router.post('/bulk-delete', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const { leadIds } = req.body;
 
   if (!Array.isArray(leadIds) || leadIds.length === 0) {
@@ -471,8 +456,9 @@ router.post('/bulk-delete', authenticateUser, asyncHandler(async (req: AuthReque
  * Export leads to CSV file
  * Query params: status, category
  */
-router.get('/export', authenticateUser, asyncHandler(async (req: AuthRequest, res: Response) => {
-  const tenantId = (req.user?.tenant_id) || '11111111-1111-1111-1111-111111111111';
+router.get('/export', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  // SECURITY: Extract tenant_id from authenticated user - NO FALLBACK
+  const tenantId = requireTenantId(req);
   const status = req.query.status as string;
   const category = req.query.category as string;
 
