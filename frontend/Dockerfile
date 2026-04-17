@@ -6,11 +6,11 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package.json only (skip lockfile)
+COPY package.json ./
 
-# Install dependencies
-RUN npm install --legacy-peer-deps || npm install
+# Install dependencies fresh
+RUN npm install --force
 
 # Copy source code
 COPY . .
@@ -18,5 +18,5 @@ COPY . .
 # Expose port
 EXPOSE 3000
 
-# Start in dev mode (skip build)
+# Start in dev mode
 CMD ["npm", "run", "dev"]
