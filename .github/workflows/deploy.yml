@@ -1,0 +1,92 @@
+name: Deploy Lead SaaS to VPS
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: 72.60.234.138
+          username: root
+          password: ${{ secrets.VPS_PASSWORD }}
+          script_stop: true
+          script: |
+            # Set variables
+            APP_DIR="/var/www/leads-saas"
+            REPO_URL="https://github.com/naeembdonline/FlowGen.git"
+
+            # Update system
+            apt-get update -y
+
+            # Install Docker if not exists
+            if ! command -v docker &> /dev/null; then
+              curl -fsSL https://get.docker.com -o get-docker.sh
+              sh get-docker.sh
+              systemctl enable docker
+              systemctl start docker
+            fi
+
+            # Install Docker Compose if not exists
+            if ! command -v docker-compose &> /dev/null; then
+              curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+            fi
+
+            # Clone or pull repository
+            mkdir -p /var/www
+            if [ -d "$APP_DIR" ]; then
+              cd $APP_DIR
+              git pull
+            else
+              git clone $REPO_URL $APP_DIR
+              cd $APP_DIR
+            fi
+
+            # Create env file if not exists
+            cd backend
+            if [ ! -f .env ]; then
+              cp .env.example .env
+            fi
+
+            # Build and start containers
+            cd $APP_DIR
+            docker-compose down 2>/dev/null || true
+            docker-compose up -d --build
+
+            # Setup Nginx
+            cat > /etc/nginx/sites-available/leads-saas << 'EOF'
+            server {
+                listen 80;
+                server_name leads.naeemmia.bd;
+
+                location / {
+                    proxy_pass http://localhost:3000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection 'upgrade';
+                    proxy_set_header Host $host;
+                    proxy_cache_bypass $http_upgrade;
+                }
+
+                location /api {
+                    proxy_pass http://localhost:5000;
+                    proxy_http_version 1.1;
+                    proxy_set_header Upgrade $http_upgrade;
+                    proxy_set_header Connection 'upgrade';
+                    proxy_set_header Host $host;
+                    proxy_cache_bypass $http_upgrade;
+                }
+            }
+            EOF
+
+            ln -sf /etc/nginx/sites-available/leads-saas /etc/nginx/sites-enabled/
+            nginx -t && systemctl reload nginx
+
+            echo "✅ Deployment complete!"
