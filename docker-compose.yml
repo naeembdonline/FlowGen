@@ -22,6 +22,11 @@ services:
     command: redis-server --appendonly yes
     networks:
       - flowgen-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
   # ----------------------------------------------------------------------------
   # BACKEND API - Node.js/Express Server
@@ -30,6 +35,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      target: development
     container_name: flowgen-backend
     restart: unless-stopped
     ports:
@@ -46,10 +52,12 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - JWT_SECRET=${JWT_SECRET:-dev-secret-key-change-in-production}
     volumes:
-      - ./backend:/app
-      - /app/node_modules
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json
+      - backend-node-modules:/app/node_modules
     depends_on:
-      - redis
+      redis:
+        condition: service_healthy
     networks:
       - flowgen-network
 
@@ -60,6 +68,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      target: development
     container_name: flowgen-frontend
     restart: unless-stopped
     ports:
@@ -68,9 +77,10 @@ services:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://leads.naeemmia.bd/api
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
-      - /app/.next
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/package.json:/app/package.json
+      - frontend-node-modules:/app/node_modules
     depends_on:
       - backend
     networks:
@@ -82,6 +92,8 @@ services:
 volumes:
   redis-data:
     driver: local
+  backend-node-modules:
+  frontend-node-modules:
 
 # ----------------------------------------------------------------------------
 # NETWORKS - Service Communication
@@ -109,6 +121,10 @@ networks:
 # Restart a service:
 #   docker-compose restart backend
 #
+# Rebuild a service:
+#   docker-compose build backend
+#   docker-compose up -d --no-deps backend
+#
 # Remove all data and start fresh:
 #   docker-compose down -v
 #
@@ -117,7 +133,7 @@ networks:
 # ============================================================================
 #
 # Frontend (Next.js):
-#   URL: http://localhost:3000
+#   URL: http://localhost:3002
 #   Container: flowgen-frontend
 #
 # Backend (Express API):
@@ -153,7 +169,7 @@ networks:
 #   curl http://localhost:3001/api/v1/health
 #
 # Frontend Health (if implemented):
-#   curl http://localhost:3000/api/health
+#   curl http://localhost:3002/api/health
 #
 # Redis Health:
 #   docker exec flowgen-redis redis-cli ping
@@ -163,7 +179,7 @@ networks:
 # ============================================================================
 #
 # Services not starting:
-#   - Check if ports 3000, 3001, 6379 are available
+#   - Check if ports 3001, 3002, 6379 are available
 #   - Check logs: docker-compose logs [service-name]
 #   - Verify .env file exists with required variables
 #
@@ -172,13 +188,13 @@ networks:
 #   - Check service health: docker-compose ps
 #   - Verify health checks are passing
 #
-# Database connection issues:
-#   - Check Supabase credentials in .env
-#   - Verify Supabase project is active
-#   - Check backend logs for Redis connection errors
+# Hot reload not working:
+#   - Check volume mounts are correct
+#   - Ensure file changes are propagated to container
+#   - Restart the service: docker-compose restart [service-name]
 #
 # Build issues:
-#   - Remove node_modules: docker-compose down -v
+#   - Remove node_modules volumes: docker-compose down -v
 #   - Rebuild: docker-compose build --no-cache
 #   - Check Dockerfile for each service
 #

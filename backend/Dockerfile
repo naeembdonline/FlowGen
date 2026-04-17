@@ -1,10 +1,14 @@
 # ============================================================================
-# FLOWGEN LEAD GENERATION SAAS - BACKEND DOCKERFILE (Development Mode)
+# FLOWGEN LEAD GENERATION SAAS - BACKEND DOCKERFILE
+# ============================================================================
+# Multi-stage build for production optimization
+# Development mode: uses tsx for direct TypeScript execution
+# Production mode: builds and runs compiled JavaScript
 # ============================================================================
 
-FROM node:18-alpine
+FROM node:18-alpine AS base
 
-# Install Chromium and dependencies
+# Install Chromium and dependencies for Puppeteer
 RUN apk add --no-cache \
     chromium \
     nss \
@@ -31,11 +35,24 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# ============================================================================
+# DEPENDENCIES STAGE
+# ============================================================================
+FROM base AS dependencies
 
-# Install all dependencies (including dev dependencies for tsx)
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Install all dependencies (including dev dependencies for tsx in dev mode)
 RUN npm ci
+
+# ============================================================================
+# DEVELOPMENT STAGE
+# ============================================================================
+FROM base AS development
+
+# Copy dependencies from dependencies stage
+COPY --from=dependencies /app/node_modules ./node_modules
 
 # Copy source code
 COPY . .
@@ -46,5 +63,28 @@ RUN mkdir -p /app/logs
 # Expose port
 EXPOSE 3001
 
-# Start with tsx (TypeScript executor) - skip build
+# Start with tsx (TypeScript executor) - skip build for hot reload
 CMD ["npx", "tsx", "src/index.ts"]
+
+# ============================================================================
+# PRODUCTION STAGE
+# ============================================================================
+FROM base AS production
+
+# Copy only production dependencies
+COPY --from=dependencies /app/node_modules ./node_modules
+
+# Copy source code
+COPY . .
+
+# Build TypeScript
+RUN npm run build
+
+# Create logs directory
+RUN mkdir -p /app/logs
+
+# Expose port
+EXPOSE 3001
+
+# Start production server
+CMD ["node", "dist/index.js"]

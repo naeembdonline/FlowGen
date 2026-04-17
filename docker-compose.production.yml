@@ -2,7 +2,7 @@
 # FLOWGEN LEAD GENERATION SAAS - PRODUCTION DOCKER COMPOSE
 # ============================================================================
 # Production-ready Docker setup for Linux server deployment
-# Usage: docker-compose up -d
+# Usage: docker-compose -f docker-compose.production.yml up -d
 # ============================================================================
 
 version: '3.8'
@@ -40,8 +40,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
+      target: production
     container_name: flowgen-backend
     restart: unless-stopped
     ports:
@@ -52,10 +51,11 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_URL=redis://redis:6379
-      - FRONTEND_URL=https://leads.naeemmia.bd
+      - FRONTEND_URL=${FRONTEND_URL:-https://leads.naeemmia.bd}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - Z_AI_API_KEY=${Z_AI_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
@@ -86,16 +86,15 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
+      target: production
     container_name: flowgen-frontend
     restart: unless-stopped
     ports:
       - "127.0.0.1:3000:3000"  # Only accessible locally
     environment:
       - NODE_ENV=production
-      - NEXT_PUBLIC_API_URL=https://leads.naeemmia.bd/api/v1
-      - NEXT_PUBLIC_APP_URL=https://leads.naeemmia.bd
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-https://leads.naeemmia.bd/api/v1}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://leads.naeemmia.bd}
     volumes:
       - frontend-logs:/app/.next/logs
     depends_on:
@@ -135,3 +134,41 @@ networks:
     ipam:
       config:
         - subnet: 172.20.0.0/16
+
+# ============================================================================
+# USAGE INSTRUCTIONS
+# ============================================================================
+#
+# Start all services:
+#   docker-compose -f docker-compose.production.yml up -d
+#
+# Stop all services:
+#   docker-compose -f docker-compose.production.yml down
+#
+# View logs:
+#   docker-compose -f docker-compose.production.yml logs -f
+#   docker-compose -f docker-compose.production.yml logs -f backend
+#
+# Rebuild and restart:
+#   docker-compose -f docker-compose.production.yml build --no-cache
+#   docker-compose -f docker-compose.production.yml up -d
+#
+# ============================================================================
+# ENVIRONMENT VARIABLES
+# ============================================================================
+#
+# Required environment variables:
+#   SUPABASE_URL
+#   SUPABASE_ANON_KEY
+#   SUPABASE_SERVICE_ROLE_KEY
+#   ANTHROPIC_API_KEY
+#   JWT_SECRET
+#
+# Optional environment variables:
+#   FRONTEND_URL (default: https://leads.naeemmia.bd)
+#   NEXT_PUBLIC_API_URL (default: https://leads.naeemmia.bd/api/v1)
+#   NEXT_PUBLIC_APP_URL (default: https://leads.naeemmia.bd)
+#   Z_AI_API_KEY
+#   OPENAI_API_KEY
+#
+# ============================================================================
