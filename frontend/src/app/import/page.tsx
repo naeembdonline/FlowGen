@@ -640,8 +640,8 @@ export default function RealTimeImportPage() {
                       </div>
 
                       <div className="flex items-center gap-4 text-xs text-gray-500">
-                        <span>{msg.wordCount} words</span>
-                        <span>{msg.characterCount} characters</span>
+                        <span>{msg.wordCount ?? 0} words</span>
+                        <span>{msg.characterCount ?? 0} characters</span>
                         <span>{new Date(msg.generatedAt).toLocaleTimeString()}</span>
                       </div>
                     </div>
