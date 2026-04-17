@@ -1,10 +1,10 @@
 # ============================================================================
-# FLOWGEN LEAD GENERATION SAAS - BACKEND DOCKERFILE
+# FLOWGEN LEAD GENERATION SAAS - BACKEND DOCKERFILE (Development Mode)
 # ============================================================================
 
 FROM node:18-alpine
 
-# Install Chromium and dependencies (Alpine 3.21 compatible)
+# Install Chromium and dependencies
 RUN apk add --no-cache \
     chromium \
     nss \
@@ -34,14 +34,11 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install all dependencies (including dev dependencies for tsx)
+RUN npm ci
 
 # Copy source code
 COPY . .
-
-# Build TypeScript
-RUN npm run build || echo "Build failed, continuing anyway..."
 
 # Create logs directory
 RUN mkdir -p /app/logs
@@ -49,5 +46,5 @@ RUN mkdir -p /app/logs
 # Expose port
 EXPOSE 3001
 
-# Start command
-CMD ["node", "dist/index.js"]
+# Start with tsx (TypeScript executor) - skip build
+CMD ["npx", "tsx", "src/index.ts"]
