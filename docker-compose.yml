@@ -44,7 +44,7 @@ services:
       - PORT=3001
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - FRONTEND_URL=http://localhost:3000
+      - FRONTEND_URL=http://localhost:3002
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
@@ -73,7 +73,7 @@ services:
     container_name: flowgen-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3002:3000"
     environment:
       - NODE_ENV=development
       - NEXT_PUBLIC_API_URL=http://localhost:3001
