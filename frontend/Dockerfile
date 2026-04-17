@@ -1,5 +1,5 @@
 # ============================================================================
-# FLOWGEN LEAD GENERATION SAAS - FRONTEND DOCKERFILE
+# FLOWGEN LEAD GENERATION SAAS - FRONTEND DOCKERFILE (Dev Mode)
 # ============================================================================
 
 FROM node:18-alpine
@@ -9,17 +9,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (use install instead of ci for compatibility)
-RUN npm install --legacy-peer-deps
+# Install dependencies
+RUN npm install --legacy-peer-deps || npm install
 
 # Copy source code
 COPY . .
 
-# Build Next.js application
-RUN npm run build
-
 # Expose port
 EXPOSE 3000
 
-# Start the application
-CMD ["npm", "start"]
+# Start in dev mode (skip build)
+CMD ["npm", "run", "dev"]
